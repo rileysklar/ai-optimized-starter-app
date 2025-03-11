@@ -75,8 +75,9 @@ export const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-muted-foreground mb-4 max-w-[700px] text-balance text-center md:text-xl"
           >
-            A production-ready full-stack web application template optimized for AI-assisted development 
-            with Next.js, Tailwind, Clerk Auth, Supabase, and Drizzle ORM.
+            A production-ready full-stack web application template optimized for
+            AI-assisted development with Next.js, Tailwind, Clerk Auth,
+            Supabase, and Drizzle ORM.
           </motion.p>
 
           <motion.div
@@ -99,7 +100,7 @@ export const HeroSection = () => {
                 rel="noopener noreferrer"
                 className="flex items-center"
               >
-                By Materialize Labs{" "}
+                By CellFlow{" "}
                 <ArrowRight className="ml-2 size-4 transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>

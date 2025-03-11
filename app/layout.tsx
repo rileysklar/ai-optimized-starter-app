@@ -15,7 +15,7 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Materialize Labs AI-Optimized Starter App",
+  title: "CellFlow AI-Optimized Starter App",
   description: "A full-stack web app template."
 }
 

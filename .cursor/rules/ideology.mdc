@@ -1,0 +1,30 @@
+---
+description: Worker's rights
+globs: 
+alwaysApply: false
+---
+Ergonomic Break Reminders:
+
+Implement the logic for scheduling and displaying break reminders.
+Allow users to customize break frequency and duration.
+Integrate break tracking with downtime logging.
+Workload Management:
+
+Develop features for task prioritization, time allocation, and progress tracking.
+Implement alerts for consistently exceeding standard times.
+Mental Health Check-ins:
+
+Design and implement optional mental health check-in prompts.
+Provide resources or support based on worker responses.
+Feedback Mechanisms:
+
+Create a user-friendly feedback form or integrate with existing systems.
+Ensure feedback is collected and analyzed effectively.
+Recognition and Appreciation:
+
+Implement features to recognize and appreciate worker contributions.
+Design a system for awarding badges or other forms of recognition.
+Anonymous Reporting:
+
+Develop a secure and anonymous reporting mechanism.
+Ensure reported concerns are routed to the appropriate personnel for investigation and resolution.

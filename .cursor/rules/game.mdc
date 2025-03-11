@@ -1,0 +1,76 @@
+---
+description: Follow these rules for the gameification of the app
+globs: 
+alwaysApply: false
+---
+Gamification Features
+
+Confetti Celebration:
+
+When a user completes a production cycle (i.e., all machines have finished processing a part), trigger a confetti animation on the screen.
+Consider using a JavaScript library like confetti.js or tsParticles to create visually appealing confetti effects.
+Efficiency Points:
+
+Develop a points system based on the user's efficiency.
+Award points based on how close the actual production time is to the standard cycle time.
+For example:
+Meeting the standard time: 10 points
+Completing within 5% of the standard time: 8 points
+Completing within 10% of the standard time: 5 points
+And so on...
+Deduct points for exceeding the standard time or for downtime occurrences.
+Point Multiplier for First Part (Setup):
+
+Since the first part often involves setup time, consider applying a point multiplier to the first part's efficiency score.
+This incentivizes users to optimize setup procedures and reduce setup time.
+Streaks and Bonuses:
+
+Implement streaks for consecutive production cycles completed within the standard time or a specific efficiency threshold.
+Award bonus points for achieving streaks.
+Consider adding daily or weekly challenges with bonus points for completion.
+Leaderboard (Optional):
+
+If you have multiple users, create a leaderboard to display rankings based on points earned.
+This fosters friendly competition and motivates users to improve their efficiency.
+Badges and Achievements:
+
+Introduce badges or achievements for reaching certain milestones, such as:
+"Efficiency Master" for consistently meeting standard times.
+"Downtime Warrior" for minimizing downtime occurrences.
+"Setup Speedy" for optimizing setup times.
+AI Agent Instructions for Cursor
+
+Confetti Implementation:
+
+Use a JavaScript library (e.g., confetti.js, tsParticles) to create and trigger confetti animations.
+Ensure the animation is visually appealing and doesn't obstruct critical information on the screen.
+Points System Logic:
+
+Develop the logic for calculating points based on efficiency.
+Implement point multipliers for first-part setups.
+Create a mechanism for tracking streaks and awarding bonus points.
+Leaderboard (Optional):
+
+If applicable, create a leaderboard to display user rankings based on points.
+Ensure the leaderboard is updated in real-time or at regular intervals.
+Badges and Achievements:
+
+Design badges or achievements with clear criteria and visual representations.
+Implement a system for awarding and displaying badges to users.
+User Interface Integration:
+
+Integrate the gamification features seamlessly into the user interface.
+Display points, streaks, badges, and the leaderboard in an intuitive and engaging manner.
+Data Storage:
+
+Add necessary columns to the Supabase tables to store points, streaks, badges, and leaderboard data.
+Ensure data is stored and retrieved efficiently.
+AI Considerations:
+
+Explore how AI can be used to personalize the gamification experience.
+For example, AI could analyze user performance and suggest areas for improvement or tailor challenges based on individual skill levels.
+Additional Tips
+
+Keep the gamification elements optional. Allow users to enable or disable them based on their preferences.
+Provide clear feedback to users on their performance and how they earn points.
+Regularly update the gamification features with new challenges, badges, or rewards to maintain user interest.

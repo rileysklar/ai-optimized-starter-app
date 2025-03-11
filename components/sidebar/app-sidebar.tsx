@@ -15,7 +15,7 @@ import {
   SidebarFooter,
   SidebarHeader
 } from "@/components/ui/sidebar"
-import { Contact, Home } from "lucide-react"
+import { BarChart, Contact, Home, LineChart, PlusCircle } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -35,6 +35,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   ]
 
+  const manufacturingItems = [
+    {
+      title: "Production",
+      href: "/manufacturing",
+      icon: BarChart
+    },
+    {
+      title: "Input",
+      href: "/manufacturing/input",
+      icon: PlusCircle
+    },
+    {
+      title: "Analytics",
+      href: "/manufacturing/analytics",
+      icon: LineChart
+    }
+  ]
+
   return (
     <Sidebar
       collapsible="icon"
@@ -49,7 +67,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 ML
               </span>
             </div>
-            <div className="text-sm font-semibold">Materialize Labs</div>
+            <div className="text-sm font-semibold">CellFlow</div>
           </div>
         </div>
       </SidebarHeader>
@@ -65,6 +83,29 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               item.href === "/"
                 ? pathname === "/"
                 : pathname?.startsWith(item.href)
+
+            return (
+              <Link key={item.href} href={item.href}>
+                <Button
+                  variant={isActive ? "secondary" : "ghost"}
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                >
+                  <item.icon className="size-4" />
+                  {item.title}
+                </Button>
+              </Link>
+            )
+          })}
+        </div>
+
+        <div className="mt-6 space-y-1">
+          <p className="text-muted-foreground px-2 py-1.5 text-xs font-medium">
+            Manufacturing
+          </p>
+
+          {manufacturingItems.map(item => {
+            const isActive = pathname?.startsWith(item.href)
 
             return (
               <Link key={item.href} href={item.href}>

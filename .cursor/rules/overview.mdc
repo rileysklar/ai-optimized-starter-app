@@ -1,0 +1,113 @@
+---
+description: overview
+globs: .tsx
+alwaysApply: false
+---
+
+The application is designed for industrial production facilities to track and optimize manufacturing efficiency. It allows users to log machine cycles, track bottlenecks, measure cycle times, and adjust production standards dynamically.
+Core Data Tables and Columns:
+
+Parts Table:
+
+id (UUID, Primary Key): Unique identifier for each part.
+part_number (Text): The part's unique identifier (e.g., "tester tester").
+part_description (Text): A description of the part (e.g., "testing").
+cycle_time_machine1 (Integer): Standard cycle time for Machine 1 in minutes.
+cycle_time_machine2 (Integer): Standard cycle time for Machine 2 in minutes.
+cycle_time_machine3 (Integer): Standard cycle time for Machine 3 in minutes.
+cycle_time_machine4 (Integer): Standard cycle time for Machine 4 in minutes.
+bottleneck_machine (Integer): The machine with the longest cycle time (determines the bottleneck).
+created_at (Timestamp with time zone): When the part was added.
+updated_at (Timestamp with time zone): When the part was last modified.
+Runs Table:
+
+id (UUID, Primary Key): Unique identifier for each run.
+cell_name (Text): The name of the cell (e.g., "tester").
+run_date (Date): The date of the run (e.g., "2025-02-17").
+start_time (Timestamp with time zone): The time the run started.
+part_id (UUID, Foreign Key referencing Parts.id): The part being run.
+quantity (Integer): The number of parts being run.
+machine1_complete_time (Timestamp with time zone, Nullable): The time the part was completed on Machine 1.
+machine2_complete_time (Timestamp with time zone, Nullable): The time the part was completed on Machine 2.
+machine3_complete_time (Timestamp with time zone, Nullable): The time the part was completed on Machine 3.
+machine4_complete_time (Timestamp with time zone, Nullable): The time the part was completed on Machine 4.
+reason_for_time_difference (Text, Nullable): Reason for any time difference from standard.
+lunch_break (Boolean): Indicates if a lunch break was taken during this part's run.
+created_at (Timestamp with time zone): When the run record was created.
+updated_at (Timestamp with time zone): When the run record was last modified.
+Setup Times Table:
+
+id (UUID, Primary Key): Unique identifier for each setup time entry.
+cell_name (Text): The name of the cell.
+setup_time_machine1 (Integer): Standard setup time for Machine 1 in minutes.
+setup_time_machine2 (Integer): Standard setup time for Machine 2 in minutes.
+setup_time_machine3 (Integer): Standard setup time for Machine 3 in minutes.
+setup_time_machine4 (Integer): Standard setup time for Machine 4 in minutes.
+date (Date): The date the setup times were applied.
+created_at (Timestamp with time zone): When the setup time record was created.
+updated_at (Timestamp with time zone): When the setup time record was last modified.
+Downtime Reasons Table:
+
+id (UUID, Primary Key): Unique identifier for each downtime reason.
+reason (Text): The reason for downtime (e.g., "Waiting on tooling").
+created_at (Timestamp with time zone): When the downtime reason was created.
+updated_at (Timestamp with time zone): When the downtime reason was last modified.
+Downtime Logs Table:
+
+id (UUID, Primary Key): Unique identifier for each downtime log entry.
+run_id (UUID, Foreign Key referencing Runs.id): The run during which the downtime occurred.
+downtime_reason_id (UUID, Foreign Key referencing DowntimeReasons.id): The reason for the downtime.
+start_time (Timestamp with time zone): The time the downtime started.
+end_time (Timestamp with time zone): The time the downtime ended.
+created_at (Timestamp with time zone): When the downtime log was created.
+updated_at (Timestamp with time zone): When the downtime log was last modified.
+Configuration Table:
+
+id (UUID, Primary Key): Unique identifier for each configuration entry.
+cell_name (Text): The name of the cell.
+good_threshold (Integer): The percentage threshold for "Good" (e.g., 90).
+okay_threshold (Integer): The percentage threshold for "Okay" (e.g., 75).
+save_location (Text): The location to save screenshots.
+created_at (Timestamp with time zone): When the configuration was created.
+updated_at (Timestamp with time zone): When the configuration was last modified.
+Calculated Fields (Frontend or Supabase Edge Functions):
+
+Actual Time: Calculate the actual time taken for a part to move through each machine (machineX_complete_time - start_time).
+Time Difference: Calculate the difference between the actual time and the standard cycle time.
+Total Loss Minutes: Sum of all time differences where actual time exceeds standard time.
+Total Breaks: Count of lunch breaks taken.
+Loss Minutes + Breaks: Sum of total loss minutes and total break minutes.
+Loss Percentage: Calculate the percentage of time lost (Loss Minutes + Breaks) / (Time Elapsed).
+Attainment Percentage: 100% - Loss Percentage.
+AI Agent Instructions for Cursor:
+
+Database Setup:
+Update the existing migration to Create the tables listed above in Supabase with the specified columns and data types.
+Establish foreign key relationships between tables.
+Data Input Forms:
+Develop forms to input part data, run data, setup times, and downtime reasons.
+Implement data validation to ensure data integrity.
+Run Tracking:
+Implement functionality to start and complete runs, record timestamps, and calculate time differences.
+Add buttons for "Complete," "First Part (Setup)," "Lunch Break," and "Save Screen."
+Reporting and Visualization:
+Create a dashboard to display real-time attainment percentages, loss minutes, and other relevant metrics.
+Visualize data using charts and graphs.
+Configuration:
+Develop a settings page to configure cell names, thresholds, and save locations.
+Error Handling:
+Implement error handling to gracefully handle invalid data and unexpected scenarios.
+Screenshot Saving:
+Implement functionality to save screenshots of the application's current state.
+Data Retrieval:
+Implement ability to retrieve previous run data by date.
+AI Integration:
+Design the application to be extensible for future AI features, such as predictive maintenance or process optimization.
+Important Considerations:
+
+Ensure proper timestamp handling for accurate time calculations.
+Implement user authentication and authorization.
+Consider using Supabase Edge Functions for complex calculations or data transformations.
+Allow the user to change the standard times for each part.
+Allow the user to change the setup times for each machine.
+This detailed breakdown should provide a solid foundation for your AI agent in Cursor to develop the application. Let me know if you have any more questions!

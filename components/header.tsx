@@ -115,9 +115,9 @@ export default function Header() {
           <div className="space-y-4">
             <SignedIn>
               <div>
-                <Link 
+                <Link
                   href="/contacts"
-                  className="block py-2 text-sm font-medium text-foreground/80 hover:text-foreground"
+                  className="text-foreground/80 hover:text-foreground block py-2 text-sm font-medium"
                   onClick={toggleMenu}
                 >
                   Go to App

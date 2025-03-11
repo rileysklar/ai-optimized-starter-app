@@ -52,7 +52,9 @@ export const CTASection = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-muted-foreground mb-8 max-w-[700px] text-balance md:text-xl"
           >
-            Get started with a complete stack including authentication, database, server actions, and deployment configuration. Includes a working contacts feature as a template for your own functionality.
+            Get started with a complete stack including authentication,
+            database, server actions, and deployment configuration. Includes a
+            working contacts feature as a template for your own functionality.
           </motion.p>
 
           <motion.div
@@ -75,13 +77,13 @@ export const CTASection = () => {
 
             <Button asChild variant="outline" size="lg">
               <Link
-                href="https://materializelabs.com"
+                href="https://rileysklar.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center"
               >
                 <ExternalLink className="mr-2 size-4" />
-                Visit Materialize Labs
+                Visit CellFlow
               </Link>
             </Button>
           </motion.div>

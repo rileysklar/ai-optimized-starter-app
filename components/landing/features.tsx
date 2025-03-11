@@ -84,7 +84,7 @@ export const FeaturesSection = () => {
   }, [])
 
   return (
-    <div className="container mx-auto px-4 pt-0 pb-8">
+    <div className="container mx-auto px-4 pb-8 pt-0">
       {!mounted ? (
         // Placeholder while loading
         <>
@@ -115,10 +115,12 @@ export const FeaturesSection = () => {
                 "mb-4 text-balance text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl"
               )}
             >
-              Enterprise-Grade Features
+              CellFLow Efficiency Monitor
             </h2>
             <p className="text-muted-foreground mx-auto max-w-[800px] text-balance md:text-xl">
-              A comprehensive stack designed for rapid development with AI tools. Includes authentication, database integration, and beautiful UI components.
+              A comprehensive stack designed for rapid development with AI
+              tools. Includes authentication, database integration, and
+              beautiful UI components.
             </p>
           </motion.div>
 

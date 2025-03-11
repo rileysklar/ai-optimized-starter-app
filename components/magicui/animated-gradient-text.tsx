@@ -30,7 +30,7 @@ export const AnimatedGradientText = ({
       )}
     >
       {mounted ? (
-        <div className="animate-gradient-x from-primary bg-gradient-to-r via-purple-500 to-pink-600 bg-clip-text text-transparent">
+        <div className="animate-gradient-x from-primary h-20 bg-gradient-to-r via-purple-500 to-pink-600 bg-clip-text text-transparent">
           {children}
         </div>
       ) : (

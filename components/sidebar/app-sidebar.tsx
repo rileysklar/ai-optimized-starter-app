@@ -15,9 +15,23 @@ import {
   SidebarFooter,
   SidebarHeader
 } from "@/components/ui/sidebar"
-import { BarChart, Contact, Home, LineChart, PlusCircle } from "lucide-react"
+import {
+  BarChart,
+  Contact,
+  Home,
+  PlusCircle,
+  Building,
+  GitBranch,
+  MapPin,
+  Cpu,
+  Book,
+  LineChart,
+  Factory
+} from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { ThemeSwitcher } from "@/components/utilities/theme-switcher"
+import { UserButton } from "@clerk/nextjs"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
@@ -29,9 +43,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: Home
     },
     {
-      title: "Contacts",
-      href: "/contacts",
-      icon: Contact
+      title: "Analytics",
+      href: "/manufacturing/analytics",
+      icon: LineChart
+    },
+    // {
+    //   title: "Contacts",
+    //   href: "/contacts",
+    //   icon: Contact
+    // },
+    {
+      title: "Docs",
+      href: "/docs",
+      icon: Book
     }
   ]
 
@@ -46,10 +70,31 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       href: "/manufacturing/input",
       icon: PlusCircle
     },
+
     {
-      title: "Analytics",
-      href: "/manufacturing/analytics",
-      icon: LineChart
+      title: "Cells",
+      href: "/manufacturing/cells",
+      icon: Building
+    },
+    {
+      title: "Machines",
+      href: "/manufacturing/machines",
+      icon: Cpu
+    },
+    {
+      title: "Value Streams",
+      href: "/manufacturing/value-streams",
+      icon: GitBranch
+    },
+    {
+      title: "Sites",
+      href: "/manufacturing/sites",
+      icon: MapPin
+    },
+    {
+      title: "Companies",
+      href: "/manufacturing/companies",
+      icon: Building
     }
   ]
 
@@ -62,12 +107,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader className="p-3">
         <div className="flex items-center px-2 py-1">
           <div className="flex items-center gap-2">
-            <div className="bg-primary flex size-6 items-center justify-center rounded-md">
-              <span className="text-primary-foreground text-xs font-bold">
-                ML
-              </span>
+            <div className="flex items-center space-x-2 hover:cursor-pointer hover:opacity-80">
+              <Link href="/" className="flex items-center text-xl font-bold">
+                <Factory className="mr-2 size-4" />
+                CellFlow
+              </Link>
             </div>
-            <div className="text-sm font-semibold">CellFlow</div>
           </div>
         </div>
       </SidebarHeader>
@@ -123,8 +168,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </div>
       </SidebarContent>
 
-      <SidebarFooter className="p-3">
-        {/* Footer content removed as requested */}
+      <SidebarFooter className="flex p-3">
+        <div className="flex justify-end space-x-3">
+          <ThemeSwitcher />
+          <UserButton afterSignOutUrl="/" />
+        </div>
       </SidebarFooter>
     </Sidebar>
   )

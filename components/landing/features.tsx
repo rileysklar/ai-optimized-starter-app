@@ -11,7 +11,14 @@ import {
   Paintbrush,
   Server,
   LayoutGrid,
-  Terminal
+  Terminal,
+  BarChart,
+  Clock,
+  Activity,
+  Bell,
+  Award,
+  Factory,
+  LineChart
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -25,55 +32,74 @@ interface FeatureProps {
 
 const features: FeatureProps[] = [
   {
-    title: "AI-First Development",
+    title: "Real-Time Efficiency Tracking",
     description:
-      "Optimized for AI pair programming with Cursor, including built-in guidelines for AI tools to understand the codebase.",
-    icon: Terminal
+      "Monitor production efficiency in real-time with dynamic dashboards that update as machine cycles complete.",
+    icon: Activity
   },
   {
-    title: "Production Ready",
+    title: "Bottleneck Detection",
     description:
-      "Enterprise-grade architecture with scalable patterns, built for deployment on Vercel with full environment setup.",
-    icon: Server
+      "Automatically identify production bottlenecks and track cycle times to optimize your manufacturing process.",
+    icon: BarChart
   },
   {
-    title: "Secure Authentication",
+    title: "Worker-Centric Design",
     description:
-      "Complete multi-tenant user management with Clerk, protected routes, and role-based access control.",
-    icon: ShieldCheck
+      "Ergonomic break reminders, mental health check-ins, and feedback mechanisms to support worker wellbeing.",
+    icon: Bell
   },
   {
-    title: "Type-Safe Database",
+    title: "Hierarchical Data Display",
     description:
-      "Strongly typed database operations with Drizzle ORM and PostgreSQL on Supabase for reliable data handling.",
-    icon: Database
+      "View efficiency metrics at company, site, value stream, cell, and operator levels with interactive filters.",
+    icon: Layers
   },
   {
-    title: "Modern UI Components",
+    title: "Gamification Elements",
     description:
-      "Beautiful, responsive interfaces with Tailwind, Shadcn/ui, and Framer Motion animations.",
-    icon: Paintbrush
+      "Boost engagement with points, achievements, and visual celebrations when production goals are met.",
+    icon: Award
   },
   {
-    title: "Server Components",
+    title: "Comprehensive Analytics",
     description:
-      "Next.js App Router with React Server Components for optimal performance and data loading patterns.",
-    icon: LayoutGrid
+      "Visualize trends, export reports, and gain insights to continuously improve manufacturing processes.",
+    icon: LineChart
   }
 ]
 
-const FeatureCard = ({ title, description, icon: Icon }: FeatureProps) => (
-  <motion.div
-    whileHover={{ scale: 1.03 }}
-    className="bg-card flex flex-col items-center rounded-lg border p-6 text-center shadow-sm transition-all hover:shadow-md"
-  >
-    <div className="bg-primary/10 mb-4 rounded-full p-3">
-      <Icon className="text-primary size-6" />
-    </div>
-    <h3 className="mb-2 text-xl font-medium">{title}</h3>
-    <p className="text-muted-foreground text-sm">{description}</p>
-  </motion.div>
-)
+const FeatureCard = ({ title, description, icon: Icon }: FeatureProps) => {
+  return (
+    <motion.div
+      whileHover={{
+        scale: 1.02,
+        backgroundPosition: "100% 50%"
+      }}
+      initial={{ backgroundPosition: "0% 50%" }}
+      transition={{
+        backgroundPosition: {
+          duration: 0.5,
+          ease: "easeInOut"
+        }
+      }}
+      className="group relative overflow-hidden rounded-lg p-[2px] shadow-sm hover:shadow-md"
+      style={{
+        background:
+          "linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #3b82f6)",
+        backgroundSize: "200% 100%"
+      }}
+    >
+      <div className="bg-card flex h-full flex-col items-center rounded-lg p-6 text-center">
+        <div className="bg-primary/10 mb-4 rounded-full from-blue-500 via-purple-500 to-pink-500 p-3 transition-all duration-300 group-hover:bg-gradient-to-r">
+          <Icon className="text-primary size-6 transition-all duration-300 group-hover:text-white" />
+        </div>
+        <h3 className="mb-2 text-xl font-medium">{title}</h3>
+        <p className="text-muted-foreground text-sm">{description}</p>
+      </div>
+    </motion.div>
+  )
+}
 
 export const FeaturesSection = () => {
   const [mounted, setMounted] = useState(false)
@@ -104,26 +130,6 @@ export const FeaturesSection = () => {
       ) : (
         // Actual content when mounted
         <>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-4 text-center"
-          >
-            <h2
-              className={cn(
-                "mb-4 text-balance text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl"
-              )}
-            >
-              CellFLow Efficiency Monitor
-            </h2>
-            <p className="text-muted-foreground mx-auto max-w-[800px] text-balance md:text-xl">
-              A comprehensive stack designed for rapid development with AI
-              tools. Includes authentication, database integration, and
-              beautiful UI components.
-            </p>
-          </motion.div>
-
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature, index) => (
               <motion.div
@@ -136,25 +142,6 @@ export const FeaturesSection = () => {
               </motion.div>
             ))}
           </div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.7 }}
-            className="mt-16 flex flex-col items-center"
-          >
-            <Button asChild size="lg">
-              <Link
-                href="https://github.com/materialize-labs/ai-optimized-starter-app"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center"
-              >
-                <Code className="mr-2 size-4" />
-                View on GitHub
-              </Link>
-            </Button>
-          </motion.div>
         </>
       )}
     </div>

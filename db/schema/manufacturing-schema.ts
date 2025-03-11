@@ -11,7 +11,8 @@ import {
   text,
   timestamp,
   uuid,
-  boolean
+  boolean,
+  numeric
 } from "drizzle-orm/pg-core"
 import { profilesTable, userRoleEnum } from "./profiles-schema"
 
@@ -72,6 +73,26 @@ export const cellsTable = pgTable("cells", {
     .$onUpdate(() => new Date())
 })
 
+// Machines table
+export const machinesTable = pgTable("machines", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  cellId: uuid("cell_id")
+    .references(() => cellsTable.id, { onDelete: "cascade" })
+    .notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  machineType: text("machine_type"),
+  status: text("status", { enum: ["idle", "running", "down", "maintenance"] })
+    .default("idle")
+    .notNull(),
+  standardCycleTime: numeric("standard_cycle_time").default("0").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at")
+    .defaultNow()
+    .notNull()
+    .$onUpdate(() => new Date())
+})
+
 // User Assignments table - links users to hierarchy
 export const userAssignmentsTable = pgTable("user_assignments", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -109,3 +130,6 @@ export type SelectCell = typeof cellsTable.$inferSelect
 
 export type InsertUserAssignment = typeof userAssignmentsTable.$inferInsert
 export type SelectUserAssignment = typeof userAssignmentsTable.$inferSelect
+
+export type InsertMachine = typeof machinesTable.$inferInsert
+export type SelectMachine = typeof machinesTable.$inferSelect

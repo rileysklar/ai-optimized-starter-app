@@ -1,5 +1,3 @@
-"use server"
-
 import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
@@ -22,6 +20,8 @@ export const metadata = {
 }
 
 export default async function InputPage() {
+  "use server"
+
   const { userId } = await auth()
 
   if (!userId) {
@@ -31,7 +31,6 @@ export default async function InputPage() {
   return (
     <div className="container py-6">
       <h1 className="mb-4 text-3xl font-bold">Manufacturing</h1>
-      <ManufacturingNavbar />
 
       <Suspense fallback={<InputSkeleton />}>
         <InputContent userId={userId} />
@@ -71,6 +70,8 @@ function InputSkeleton() {
 }
 
 async function InputContent({ userId }: { userId: string }) {
+  "use server"
+
   // Fetch data for forms
   const { data: cells } = await getCellsAction()
   const { data: parts } = await getPartsAction()

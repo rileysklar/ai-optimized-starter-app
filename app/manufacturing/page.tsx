@@ -6,7 +6,6 @@ import { ProductionTrackerSkeleton } from "@/app/manufacturing/_components/produ
 import { getCellsAction } from "@/actions/db/cells-actions"
 import { getPartsAction } from "@/actions/db/parts-actions"
 import { SelectCell, SelectPart } from "@/db/schema"
-import { ManufacturingNavbar } from "@/app/manufacturing/_components/manufacturing-navbar"
 
 export const metadata = {
   title: "Production Tracking | Manufacturing",
@@ -25,7 +24,6 @@ export default async function ManufacturingPage() {
   return (
     <div className="container py-6">
       <h1 className="mb-4 text-3xl font-bold">Manufacturing</h1>
-      <ManufacturingNavbar />
 
       <Suspense fallback={<ProductionTrackerSkeleton />}>
         <ProductionTrackerContent userId={userId} />

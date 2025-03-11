@@ -36,7 +36,7 @@ import {
   PopoverContent,
   PopoverTrigger
 } from "@/components/ui/popover"
-import { CalendarIcon, PlusCircle, Save } from "lucide-react"
+import { CalendarIcon, PlusCircle, Save, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
@@ -85,6 +85,8 @@ export function HourXHourTracker({
   const [shift, setShift] = useState<string>("1st")
   const [runningParts, setRunningParts] = useState<ProductionRun[]>([])
   const [isNewPartDialogOpen, setIsNewPartDialogOpen] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
   const [metrics, setMetrics] = useState<EfficiencyMetrics>({
     attainmentPercentage: 100,
     totalLossMinutes: 0,
@@ -116,9 +118,9 @@ export function HourXHourTracker({
           duration: 4000,
           position: "top-center",
           style: {
-            background: "#FEF3C7",
-            color: "#92400E",
-            border: "1px solid #F59E0B",
+            background: "var(--toast-error-background, #FEF3C7)",
+            color: "var(--toast-error-foreground, #92400E)",
+            border: "1px solid var(--toast-error-border, #F59E0B)",
             fontWeight: "bold"
           }
         })
@@ -186,7 +188,14 @@ export function HourXHourTracker({
 
       setRunningParts(prevParts => [...prevParts, newPart])
 
-      toast.success(`Part ${part.partNumber} added to production`)
+      toast.success(`Part ${part.partNumber} added to production`, {
+        style: {
+          background: "var(--toast-success-background)",
+          color: "var(--toast-success-foreground)",
+          border: "1px solid var(--toast-success-border)",
+          fontWeight: "bold"
+        }
+      })
 
       // Force re-render
       setTimeout(() => {
@@ -194,7 +203,14 @@ export function HourXHourTracker({
       }, 100)
     } catch (error) {
       console.error("Failed to add part to production:", error)
-      toast.error("Failed to add part to production")
+      toast.error("Failed to add part to production", {
+        style: {
+          background: "var(--toast-error-background)",
+          color: "var(--toast-error-foreground)",
+          border: "1px solid var(--toast-error-border)",
+          fontWeight: "bold"
+        }
+      })
     }
   }
 
@@ -356,6 +372,9 @@ export function HourXHourTracker({
     }
 
     try {
+      setIsSaving(true)
+      setSaveSuccess(false)
+
       // Make sure we have the latest efficiency metrics
       calculateEfficiency()
 
@@ -373,12 +392,18 @@ export function HourXHourTracker({
       const result = await saveProductionScreenAction(screenData)
 
       if (result.isSuccess) {
+        setSaveSuccess(true)
         toast.success("✅ Production data saved!", {
           description:
             "All production data has been successfully saved to the database.",
           duration: 4000,
           className: "bg-green-50 text-green-900 border-green-300 font-medium"
         })
+
+        // Reset success state after 3 seconds
+        setTimeout(() => {
+          setSaveSuccess(false)
+        }, 3000)
       } else {
         toast.error("❌ Save failed", {
           description:
@@ -391,8 +416,16 @@ export function HourXHourTracker({
       console.error("Failed to save production data", error)
       toast.error("❌ Error saving data", {
         description: "An unexpected error occurred. Please try again.",
-        duration: 3000
+        duration: 3000,
+        style: {
+          background: "var(--toast-error-background)",
+          color: "var(--toast-error-foreground)",
+          border: "1px solid var(--toast-error-border)",
+          fontWeight: "bold"
+        }
       })
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -421,7 +454,7 @@ export function HourXHourTracker({
           <Select value={selectedCell} onValueChange={handleCellChange}>
             <SelectTrigger
               id="cell-select"
-              className={`w-40 ${!selectedCell ? "animate-pulse border-amber-500 bg-amber-50" : ""}`}
+              className={`w-40 ${!selectedCell ? "animate-pulse border-amber-500 bg-amber-50 dark:border-amber-400 dark:bg-amber-950/30" : ""}`}
             >
               <SelectValue placeholder="Select Cell" />
             </SelectTrigger>
@@ -483,12 +516,31 @@ export function HourXHourTracker({
           </Button>
 
           <Button
-            variant="outline"
-            className="flex items-center gap-2"
+            variant="default"
+            className={`flex items-center gap-2 px-5 transition-all duration-300 ${
+              saveSuccess
+                ? "bg-green-600 text-white hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
+                : ""
+            }`}
             onClick={handleSaveScreen}
+            disabled={isSaving || runningParts.length === 0}
           >
-            <Save className="size-4" />
-            Save Screen
+            {isSaving ? (
+              <>
+                <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Saving...
+              </>
+            ) : saveSuccess ? (
+              <>
+                <CheckCircle2 className="size-4" />
+                Saved!
+              </>
+            ) : (
+              <>
+                <Save className="size-4" />
+                Save Screen
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -577,7 +629,9 @@ export function HourXHourTracker({
                   className={cn(
                     "font-medium",
                     run.timeDifference > 0 ? "text-destructive" : "",
-                    run.timeDifference < 0 ? "text-green-600" : ""
+                    run.timeDifference < 0
+                      ? "text-green-600 dark:text-green-500"
+                      : ""
                   )}
                 >
                   {run.timeDifference !== 0 ? run.timeDifference : "-"}
@@ -604,7 +658,7 @@ export function HourXHourTracker({
               <TableCell colSpan={12}>
                 <div className="flex flex-col items-center py-2">
                   {!selectedCell && (
-                    <div className="mb-3 w-full max-w-xl rounded-r border-l-4 border-amber-500 bg-amber-50 p-3 text-amber-700">
+                    <div className="mb-3 w-full max-w-xl rounded-r border-l-4 border-amber-500 bg-amber-50 p-3 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
                       <p className="font-bold">⚠️ Cell selection required</p>
                       <p>
                         Please select a cell from the dropdown at the top before
@@ -621,7 +675,14 @@ export function HourXHourTracker({
                         if (parts.length > 0) {
                           handleAddPart(parts[0].id)
                         } else {
-                          toast.error("No parts available")
+                          toast.error("No parts available", {
+                            style: {
+                              background: "var(--toast-error-background)",
+                              color: "var(--toast-error-foreground)",
+                              border: "1px solid var(--toast-error-border)",
+                              fontWeight: "bold"
+                            }
+                          })
                         }
                       }}
                     >
@@ -712,10 +773,10 @@ export function HourXHourTracker({
                     className={cn(
                       "absolute inset-0 flex items-center justify-center rounded-full text-5xl font-bold",
                       metrics.attainmentPercentage >= 90
-                        ? "bg-green-100"
+                        ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
                         : metrics.attainmentPercentage >= 75
-                          ? "bg-amber-100"
-                          : "bg-red-100"
+                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+                          : "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
                     )}
                   >
                     {metrics.attainmentPercentage.toFixed(0)}
@@ -723,15 +784,15 @@ export function HourXHourTracker({
                 </div>
                 <div className="mt-6 flex gap-8">
                   <div className="flex items-center gap-2">
-                    <div className="size-4 rounded-full bg-green-100"></div>
+                    <div className="size-4 rounded-full bg-green-100 dark:bg-green-800"></div>
                     <span className="text-sm">Winning (&gt;90%)</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="size-4 rounded-full bg-amber-100"></div>
+                    <div className="size-4 rounded-full bg-amber-100 dark:bg-amber-800"></div>
                     <span className="text-sm">Mistakes Happen (&gt;75%)</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="size-4 rounded-full bg-red-100"></div>
+                    <div className="size-4 rounded-full bg-red-100 dark:bg-red-800"></div>
                     <span className="text-sm">WHOOPS! (&lt;75%)</span>
                   </div>
                 </div>
@@ -775,16 +836,28 @@ export function HourXHourTracker({
                 <div className="space-y-2">
                   <div className="grid grid-cols-4 gap-2">
                     <div className="text-center">10</div>
-                    <div className="bg-yellow-100 text-center">5</div>
-                    <div className="bg-green-100 text-center">2</div>
-                    <div className="bg-amber-100 text-center">4</div>
+                    <div className="bg-yellow-100 text-center dark:bg-yellow-900/40">
+                      5
+                    </div>
+                    <div className="bg-green-100 text-center dark:bg-green-900/40">
+                      2
+                    </div>
+                    <div className="bg-amber-100 text-center dark:bg-amber-900/40">
+                      4
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-4 gap-2">
                     <div className="text-center">10</div>
-                    <div className="bg-yellow-100 text-center">5</div>
-                    <div className="bg-yellow-100 text-center">5</div>
-                    <div className="bg-green-100 text-center">2</div>
+                    <div className="bg-yellow-100 text-center dark:bg-yellow-900/40">
+                      5
+                    </div>
+                    <div className="bg-yellow-100 text-center dark:bg-yellow-900/40">
+                      5
+                    </div>
+                    <div className="bg-green-100 text-center dark:bg-green-900/40">
+                      2
+                    </div>
                   </div>
                 </div>
               </div>

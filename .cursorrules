@@ -195,7 +195,7 @@ export async function ExampleServerComponent({
 ##### Client Components
 
 - Use `"use client"` at the top of the file
-- Client components can safely rely on props passed down from server components, or handle UI interactions without needing <Suspense> if there’s no async logic.
+- Client components can safely rely on props passed down from server components, or handle UI interactions without needing <Suspense> if there's no async logic.
 - Never use server actions in client components. If you need to create a new server action, create it in `/actions`
 
 Example of a client page:
@@ -645,3 +645,250 @@ USING (auth.uid()::text = (storage.foldername(name))[1]);
 - Implement progressive upload for large files
 - Clean up temporary files and failed uploads
 - Use batch operations when handling multiple files
+
+## Migration Strategy
+
+The Manufacturing Efficiency Tracking System requires a migration from the existing contact application to a comprehensive industrial tracking platform. This document outlines the strategy for this transformation while preserving core architecture.
+
+### Overview
+
+We're preserving the core infrastructure of the app while significantly expanding its capabilities to include manufacturing-specific entities and relationships.
+
+### Completed Work
+
+#### 1. Database Schema Migration
+
+A comprehensive SQL migration file has been created at `supabase/migrations/20250310_manufacturing_schema.sql` containing:
+
+- Enums for `user_role`, `machine_status`, and `downtime_reason`
+- Tables for manufacturing hierarchy (companies, sites, value streams, cells)
+- Tables for production tracking (machines, production logs, downtime logs)
+- Tables for metrics and analysis (efficiency metrics, bottleneck analysis)
+- Row-level security policies and performance indexes for all tables
+
+An additional migration for parts has been created at `supabase/migrations/20250325_parts_schema.sql` containing:
+- Parts table with machine cycle times and bottleneck information
+- Associated row-level security policies
+- Performance indexes
+
+#### 2. TypeScript Schema Definitions
+
+Drizzle schema files have been created at:
+
+- `db/schema/manufacturing-schema.ts` - For company, site, value stream, and cell entities
+- `db/schema/production-schema.ts` - For machines and logs
+- `db/schema/metrics-schema.ts` - For efficiency metrics and bottleneck analysis
+- `db/schema/parts-schema.ts` - For parts and their cycle times
+
+Updates have been made to existing files:
+- `db/schema/profiles-schema.ts` - Added role field
+- `db/schema/index.ts` - Now exports all new schemas
+- `db/db.ts` - Updated to include all new tables in the schema object
+
+#### 3. Server Actions Implementation
+
+Created server action files for:
+
+##### Manufacturing Hierarchy:
+- `actions/db/companies-actions.ts` - CRUD operations for companies
+- `actions/db/sites-actions.ts` - CRUD operations for sites
+- `actions/db/value-streams-actions.ts` - CRUD operations for value streams
+- `actions/db/cells-actions.ts` - CRUD operations for cells
+- `actions/db/user-assignments-actions.ts` - CRUD operations for user assignments
+
+##### Production:
+- `actions/db/machines-actions.ts` - CRUD operations for machines with status updates
+- `actions/db/production-logs-actions.ts` - Start/complete production cycles
+- `actions/db/downtime-logs-actions.ts` - Log downtime events
+- `actions/db/parts-actions.ts` - CRUD operations for parts with cycle times
+
+##### Analytics:
+- `actions/db/efficiency-metrics-actions.ts` - Calculate efficiency metrics
+- `actions/db/bottleneck-analysis-actions.ts` - Identify bottlenecks
+
+All server actions include:
+- Input validation using Zod
+- Proper error handling with structured responses
+- TypeScript typing for params and return values
+- Consistent patterns following project standards
+
+#### 4. Core UI Components Implementation
+
+Developed manufacturing-specific UI components following Next.js App Router architecture:
+
+##### Production Tracking:
+- `app/manufacturing/page.tsx` - Main production tracking page with proper server/client pattern
+- `app/manufacturing/_components/hour-x-hour-tracker.tsx` - Real-time production tracking component
+- `app/manufacturing/_components/production-tracker-skeleton.tsx` - Loading state for production tracker
+
+##### Efficiency Analysis:
+- `app/manufacturing/analytics/page.tsx` - Analytics dashboard page
+- `app/manufacturing/_components/efficiency-dashboard.tsx` - Dashboard for visualizing efficiency metrics
+- `app/manufacturing/_components/metrics-skeleton.tsx` - Loading state for efficiency metrics
+
+##### Manufacturing Hierarchy Management:
+- `app/manufacturing/companies/page.tsx` - Companies management page
+- `app/manufacturing/sites/page.tsx` - Sites management page
+- `app/manufacturing/value-streams/page.tsx` - Value streams management page
+- `app/manufacturing/cells/page.tsx` - Cells management page
+- `app/manufacturing/machines/page.tsx` - Machines management page
+- `app/manufacturing/_components/companies-manager.tsx` - Component for managing companies
+- `app/manufacturing/_components/sites-manager.tsx` - Component for managing sites
+- `app/manufacturing/_components/value-streams-manager.tsx` - Component for managing value streams
+- `app/manufacturing/_components/cells-manager.tsx` - Component for managing cells
+- `app/manufacturing/_components/machines-manager.tsx` - Component for managing machines
+- `app/manufacturing/_components/new-cell-dialog.tsx` - Dialog for creating and editing cells
+- `app/manufacturing/_components/new-machine-dialog.tsx` - Dialog for creating and editing machines
+
+##### Part Management:
+- `app/manufacturing/input/page.tsx` - Data input page for parts and setup times
+- `app/manufacturing/_components/new-part-dialog.tsx` - Dialog for creating and editing parts
+- `app/manufacturing/_components/parts-manager.tsx` - Component for managing parts
+
+##### Navigation and Layout:
+- `app/manufacturing/_components/manufacturing-navbar.tsx` - Navigation bar for manufacturing pages
+
+All components follow the frontend architecture guidelines:
+- Server components for data fetching
+- Client components with "use client" directive for interactivity
+- Proper TypeScript interfaces for props and data
+- ShadCN UI for consistent component styling
+- Responsive design patterns
+
+#### 5. Server Component Architecture Refinement
+
+- Implemented proper "use server" directive placement in server components
+- Fixed issues with metadata exports in server components
+- Ensured proper async/non-async function separation
+- Resolved module import issues for theme switching and other components
+
+#### 6. UI Enhancements and Visual Improvements
+
+- Updated the landing page to reflect the Manufacturing Efficiency Tracking System
+- Redesigned the hero section with animated gradient text and descriptive content
+- Created feature cards with animated gradient borders on hover
+- Added a fluid mouse-tracking grid effect to the hero section
+- Reorganized the navigation bar with dropdown menus for better organization
+- Implemented dark mode compatibility throughout the application
+- Added responsive design improvements for all screen sizes
+
+### Next Steps
+
+#### 1. Apply Database Migrations
+
+```bash
+# Run this command to apply the migrations
+supabase db push
+```
+
+- Verify all tables appear in the Supabase dashboard
+- Check that relationships are properly established
+- Confirm RLS policies are functioning as expected
+
+#### 2. Complete Production Tracking UI
+
+- Finish the Hour X Hour tracker implementation:
+  - Fix any remaining TypeScript errors in calendar components
+  - Complete the production cycle completion functionality
+  - Implement lunch break and time difference tracking
+  - Add proper error handling for all user interactions
+  - Ensure proper cell selection before adding parts
+  - **Remove the test part function** and replace with proper part selection
+  - Create a form to add parts based on the manufacturing hierarchy
+
+- Add additional production visualizations:
+  - Implement attainment percentage indicators
+  - Create time-series charts for production efficiency
+  - Add machine utilization displays
+
+#### 3. Enhance Hierarchical Navigation
+
+- Improve company/site/value stream/cell navigation components
+- Implement dropdown selectors for filtering data by hierarchy level
+- Add breadcrumb navigation for current context
+- Ensure proper data relationships between hierarchy levels
+
+#### 4. Finalize Analytics Dashboard
+
+- Complete efficiency metrics charts using Recharts
+- Implement date range selection for historical analysis
+- Add bottleneck detection visualizations
+- Create export functionality for reports (CSV/PDF)
+
+#### 5. Database Integration Testing
+
+- Test saving all production data to the database
+- Verify data relationships and constraints
+- Implement proper error handling for database operations
+- Create comprehensive tests for all CRUD operations
+- Validate data integrity across the application
+
+#### 6. Add Role-Based Access Control
+
+- Implement permission checks based on user roles
+- Create admin interface for role management
+- Restrict access to sensitive operations based on permissions
+
+#### 7. Optimize Performance
+
+- Implement proper data fetching patterns with Suspense
+- Add caching mechanisms for frequently accessed data
+- Optimize component re-renders with proper memoization
+- Ensure responsive design across all screen sizes
+
+#### 8. Add Real-Time Updates
+
+- Implement WebSocket connections for live data updates
+- Add notifications for critical efficiency changes
+- Create real-time collaboration features
+
+#### 9. Clean Up Legacy Components
+
+- Remove unnecessary contacts components
+- Clean up unused routes and pages
+- Update navigation to focus on manufacturing features
+- Ensure proper redirects from legacy routes
+
+### Implementation Timeline
+
+- **Phase 1** (Completed): Database schema migration
+- **Phase 2** (Completed): Server actions and basic UI components
+- **Phase 3** (Completed): Manufacturing hierarchy management UI
+  - Companies, sites, value streams, cells, and machines management
+  - Dialog components for creating and editing entities
+  - Navigation between hierarchy levels
+- **Phase 4** (Completed): UI enhancements and visual improvements
+  - Landing page redesign
+  - Navigation reorganization
+  - Dark mode compatibility
+  - Interactive UI elements
+- **Phase 5** (In Progress): Production tracking UI completion
+  - Hour X Hour tracker finalization
+  - Part management interface improvements
+  - Setup time configuration
+  - Removing test functions and implementing proper forms
+- **Phase 6** (Next): Database integration testing
+  - Testing all CRUD operations
+  - Validating data relationships
+  - Ensuring data integrity
+- **Phase 7**: Analytics dashboard development
+  - Efficiency metrics visualization
+  - Bottleneck analysis tools
+  - Historical data reporting
+- **Phase 8**: Role-based access and permissions
+- **Phase 9**: Real-time functionality
+- **Phase 10**: Legacy component cleanup and UI polish
+  - Removing contacts components
+  - Cleaning up unused routes
+  - Final performance optimization
+
+### Architectural Considerations
+
+Throughout this migration, we're maintaining:
+- Server/client component separation following Next.js best practices
+- Strong TypeScript typing for all components and data
+- Consistent UI patterns using ShadCN components
+- Proper loading states with Suspense boundaries
+- Accessibility considerations for all interactive elements
+
+This approach allows us to leverage the existing codebase while completely transforming its functionality to serve as a sophisticated manufacturing efficiency tracking system.

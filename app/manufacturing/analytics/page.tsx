@@ -1,5 +1,3 @@
-"use server"
-
 import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
@@ -15,6 +13,8 @@ export const metadata = {
 }
 
 export default async function AnalyticsPage() {
+  "use server"
+
   const { userId } = await auth()
 
   if (!userId) {
@@ -24,7 +24,6 @@ export default async function AnalyticsPage() {
   return (
     <div className="container py-6">
       <h1 className="mb-4 text-3xl font-bold">Manufacturing</h1>
-      <ManufacturingNavbar />
 
       <Suspense fallback={<AnalyticsSkeleton />}>
         <AnalyticsContent userId={userId} />
@@ -72,6 +71,8 @@ function AnalyticsSkeleton() {
 }
 
 async function AnalyticsContent({ userId }: { userId: string }) {
+  "use server"
+
   // Fetch cells data for the dashboard
   const { data: cells } = await getCellsAction()
 

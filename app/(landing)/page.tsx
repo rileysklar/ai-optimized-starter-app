@@ -6,7 +6,7 @@ import { CTASection } from "@/components/landing/cta"
 
 export default async function HomePage() {
   return (
-    <div className="pb-20">
+    <div className="flex flex-col gap-12 pb-20">
       <HeroSection />
       <FeaturesSection />
       <CTASection />

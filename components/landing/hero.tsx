@@ -197,8 +197,8 @@ export const HeroSection = () => {
                 "text-balance text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl"
               )}
             >
-              <span className="text-foreground block">Build in a weekend</span>
-              <span className="text-primary block">Scale to millions</span>
+              <span className="text-foreground block">Track progress</span>
+              <span className="text-primary block">Reward success</span>
             </h1>
           </motion.div>
 

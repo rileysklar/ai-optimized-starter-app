@@ -20,7 +20,6 @@ export default async function DocsPage() {
 
   return (
     <div className="container py-6">
-      <h1 className="mb-6 text-3xl font-bold">Documentation</h1>
       <Suspense fallback={<DocViewerSkeleton />}>
         <DocPageContent />
       </Suspense>

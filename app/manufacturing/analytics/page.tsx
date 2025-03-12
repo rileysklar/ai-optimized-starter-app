@@ -1,261 +1,387 @@
+"use server"
+
 import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
-import EfficiencyDashboard from "@/app/manufacturing/_components/efficiency-dashboard"
+import { Metadata } from "next"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getCellsAction } from "@/actions/db/cells-actions"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { ManufacturingNavbar } from "@/app/manufacturing/_components/manufacturing-navbar"
+import { getValueStreamsAction } from "@/actions/db/value-streams-actions"
 import { getEfficiencyMetricsAction } from "@/actions/db/efficiency-metrics-actions"
 import { getBottleneckAnalysisAction } from "@/actions/db/bottleneck-analysis-actions"
-import { BatchMetricsCalculator } from "@/app/manufacturing/_components/batch-metrics-calculator"
+import { getAggregatedEfficiencyMetricsAction } from "@/actions/db/efficiency-metrics-actions"
+import { getProductionLogsByDateRangeAction } from "@/actions/db/production-logs-actions"
+import { format, subDays, startOfDay, parse } from "date-fns"
+import { EfficiencyDashboard } from "./_components/efficiency-dashboard"
+import { BottleneckAnalysisDashboard } from "./_components/bottleneck-analysis-dashboard"
+import { ProductionTrendsChart } from "./_components/production-trends-chart"
+import { DateRangeSelector } from "./_components/date-range-selector"
+import { HierarchySelector } from "./_components/hierarchy-selector"
+import { AnalyticsSkeleton } from "./_components/analytics-skeleton"
+import { BatchMetricsCalculator } from "../_components/batch-metrics-calculator"
+import { SelectCell, SelectValueStream } from "@/db/schema"
+import { SelectEfficiencyMetric } from "@/db/schema/metrics-schema"
+import { SelectBottleneckAnalysis } from "@/db/schema/metrics-schema"
 
-// Define basic types for our metrics and bottlenecks
-interface BasicMetric {
-  id: string
-  cellId: string
-  date: string
-  efficiency: number
-  attainmentPercentage?: number
-  lossPercentage: number
-  totalLossMinutes: number
-  totalBreakMinutes: number
-  totalCycleTime: number
-  standardCycleTime: number
-  totalDowntime?: number
-  totalRuntime?: number
-  downtimeMinutes?: string | number
+// Replace direct metadata export with generateMetadata function
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: "Analytics | Manufacturing",
+    description: "Manufacturing efficiency analytics and insights"
+  }
 }
 
-interface BasicBottleneck {
-  id: string
-  cellId: string
-  date: string
-  bottleneckMachineId: string
-  bottleneckPercentage: number
-  impactMinutes: number
-  recommendedAction: string
+interface SearchParams {
+  cellId?: string
+  valueStreamId?: string
+  startDate?: string
+  endDate?: string
 }
 
-interface CellType {
-  id: string
-  name: string
-  valueStreamId: string
-}
-
-export const metadata = {
-  title: "Analytics | Manufacturing",
-  description: "Manufacturing efficiency analytics and insights"
-}
-
-// Skeleton component for the analytics dashboard
-function DashboardSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="h-8 w-64 animate-pulse rounded bg-gray-200"></div>
-      <div className="grid gap-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-40 animate-pulse rounded bg-gray-200"></div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({
+  searchParams
+}: {
+  searchParams: SearchParams
+}) {
   const { userId } = await auth()
 
   if (!userId) {
     redirect("/login")
   }
 
-  // Get default cell ID from the first available cell
-  let defaultCell = ""
-  try {
-    const cellsResult = await getCellsAction()
-    if (
-      cellsResult.isSuccess &&
-      cellsResult.data &&
-      cellsResult.data.length > 0
-    ) {
-      defaultCell = cellsResult.data[0].id
-    }
-  } catch (error) {
-    console.error("Error fetching default cell:", error)
-  }
-
+  // All data will be fetched in the AnalyticsContent component
   return (
-    <div>
-      <div className="container py-6">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <div className="md:col-span-2">
-            <Suspense fallback={<DashboardSkeleton />}>
-              <AnalyticsContent userId={userId} />
-            </Suspense>
-          </div>
-
-          {defaultCell && (
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Admin Utilities</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <BatchMetricsCalculator cellId={defaultCell} />
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </div>
-      </div>
+    <div className="container py-6">
+      <Suspense fallback={<AnalyticsSkeleton />}>
+        <AnalyticsContent userId={userId} searchParams={searchParams} />
+      </Suspense>
     </div>
   )
 }
 
-async function AnalyticsContent({ userId }: { userId: string }) {
-  // Initialize empty arrays for metrics and bottlenecks
-  let cells: CellType[] = []
-  let initialMetrics: BasicMetric[] = []
-  let initialBottlenecks: BasicBottleneck[] = []
+async function AnalyticsContent({
+  userId,
+  searchParams
+}: {
+  userId: string
+  searchParams: SearchParams
+}) {
+  // Get parameters from URL or use defaults
+  const {
+    cellId: cellIdParam,
+    valueStreamId,
+    startDate: startDateParam,
+    endDate: endDateParam
+  } = searchParams
 
-  try {
-    // Get all cells
-    const cellsResult = await getCellsAction()
-    if (cellsResult.isSuccess && cellsResult.data) {
-      cells = cellsResult.data
+  // Fetch cells for hierarchy selection
+  const cellsResult = await getCellsAction()
+  const cells: SelectCell[] = cellsResult.isSuccess ? cellsResult.data : []
+
+  // Fetch value streams for hierarchy selection
+  const valueStreamsResult = await getValueStreamsAction()
+  const valueStreams: SelectValueStream[] = valueStreamsResult.isSuccess
+    ? valueStreamsResult.data
+    : []
+
+  // Filter cells by value stream if specified
+  const filteredCells = valueStreamId
+    ? cells.filter(cell => cell.valueStreamId === valueStreamId)
+    : cells
+
+  // Set default cell if available
+  let defaultCell = null
+
+  // Try to use the cell from URL parameters first
+  if (cellIdParam) {
+    defaultCell = cells.find(cell => cell.id === cellIdParam) || null
+  }
+
+  // If no cell from URL or cell not found, use first cell from filtered list
+  if (!defaultCell && filteredCells.length > 0) {
+    defaultCell = filteredCells[0]
+  }
+
+  // If still no cell, use first cell from all cells
+  if (!defaultCell && cells.length > 0) {
+    defaultCell = cells[0]
+  }
+
+  const defaultCellId = defaultCell?.id || ""
+  const defaultCellName = defaultCell?.name || "No cells available"
+
+  // Parse dates or use defaults (last 7 days)
+  const today = new Date()
+  const sevenDaysAgo = subDays(today, 7)
+
+  // Set default date range (validate and parse input dates)
+  const isValidDateString = (dateStr?: string) => {
+    if (!dateStr) return false
+    return /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+  }
+
+  const parseDate = (dateStr: string, defaultDate: Date) => {
+    try {
+      if (isValidDateString(dateStr)) {
+        return parse(dateStr, "yyyy-MM-dd", new Date())
+      }
+      return defaultDate
+    } catch (error) {
+      return defaultDate
     }
+  }
 
-    // If there are no cells, return early
-    if (cells.length === 0) {
-      return (
-        <div className="bg-muted mt-4 rounded-md p-4">
-          <p>No cells found. Please create a cell first.</p>
-        </div>
-      )
-    }
+  const startDate = startDateParam
+    ? parseDate(startDateParam, sevenDaysAgo)
+    : sevenDaysAgo
 
-    // Use the first cell as default
-    const defaultCell = cells[0].id
+  const endDate = endDateParam ? parseDate(endDateParam, today) : today
 
-    // Get date range for the past 7 days
-    const today = new Date()
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(today.getDate() - 7)
+  const startDateStr = format(startOfDay(startDate), "yyyy-MM-dd")
+  const endDateStr = format(startOfDay(endDate), "yyyy-MM-dd")
 
-    const todayStr = today.toISOString().split("T")[0]
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0]
+  // Only fetch data if we have a valid cell
+  let efficiencyMetrics: SelectEfficiencyMetric[] = []
+  let bottleneckAnalyses: SelectBottleneckAnalysis[] = []
+  let productionLogs: any[] = []
+  let aggregatedMetrics: any = null
 
-    // Fetch efficiency metrics from the API
-    console.log(
-      `Getting efficiency metrics for cell: ${defaultCell} from ${sevenDaysAgoStr} to ${todayStr}`
-    )
+  if (defaultCellId) {
+    // Fetch efficiency metrics for the selected cell and date range
     const metricsResult = await getEfficiencyMetricsAction({
-      cellId: defaultCell,
-      startDate: sevenDaysAgoStr,
-      endDate: todayStr
+      cellId: defaultCellId,
+      startDate: startDateStr,
+      endDate: endDateStr
     })
 
-    if (
-      metricsResult.isSuccess &&
-      metricsResult.data &&
-      metricsResult.data.length > 0
-    ) {
-      console.log(
-        `Successfully retrieved ${metricsResult.data.length} efficiency metrics`
-      )
-      initialMetrics = metricsResult.data.map(metric => ({
-        id: metric.id,
-        cellId: metric.cellId,
-        date: metric.date,
-        // Map existing fields from the database to our expected format
-        efficiency:
-          typeof metric.efficiency === "number"
-            ? metric.efficiency
-            : typeof metric.efficiency === "string"
-              ? parseFloat(metric.efficiency)
-              : 0,
-        // Default value for fields that might not exist in the DB
-        attainmentPercentage:
-          metric.attainmentPercentage ||
-          (typeof metric.efficiency === "number"
-            ? metric.efficiency
-            : typeof metric.efficiency === "string"
-              ? parseFloat(metric.efficiency)
-              : 0),
-        lossPercentage:
-          100 -
-          (metric.attainmentPercentage ||
-            (typeof metric.efficiency === "number"
-              ? metric.efficiency
-              : typeof metric.efficiency === "string"
-                ? parseFloat(metric.efficiency)
-                : 0)),
-        totalLossMinutes: metric.downtimeMinutes
-          ? parseFloat(metric.downtimeMinutes as string)
-          : metric.totalDowntime
-            ? Math.round(metric.totalDowntime / 60)
-            : 0,
-        totalBreakMinutes: 30, // Default break time
-        totalCycleTime: metric.totalRuntime || 0,
-        standardCycleTime: 480 * 60 // 8 hours in seconds
-      }))
-    } else {
-      // No metrics found, leaving initialMetrics as empty array
-      console.log("No efficiency metrics found in database")
+    if (metricsResult.isSuccess) {
+      efficiencyMetrics = metricsResult.data
     }
 
-    // Fetch actual bottleneck data from the database
-    console.log("Fetching bottleneck analysis data from database")
-    const bottlenecksResult = await getBottleneckAnalysisAction({
-      cellId: defaultCell,
-      startDate: sevenDaysAgoStr,
-      endDate: todayStr
+    // Fetch bottleneck analyses for the selected cell and date range
+    const bottleneckResult = await getBottleneckAnalysisAction({
+      cellId: defaultCellId,
+      startDate: startDateStr,
+      endDate: endDateStr
     })
 
-    if (
-      bottlenecksResult.isSuccess &&
-      bottlenecksResult.data &&
-      bottlenecksResult.data.length > 0
-    ) {
-      console.log(
-        `Successfully retrieved ${bottlenecksResult.data.length} bottleneck analyses`
-      )
-      initialBottlenecks = bottlenecksResult.data.map(b => ({
-        id: b.id,
-        cellId: b.cellId,
-        date: b.date,
-        bottleneckMachineId: b.bottleneckMachineId || `machine-1`,
-        bottleneckPercentage: b.bottleneckSeverity
-          ? parseFloat(b.bottleneckSeverity.toString())
-          : 0,
-        impactMinutes: b.bottleneckSeverity
-          ? Math.round(parseFloat(b.bottleneckSeverity.toString()) * 4.8)
-          : 0,
-        recommendedAction: b.notes || "Review machine performance"
-      }))
-    } else {
-      console.log("No bottleneck analysis data found in database")
+    if (bottleneckResult.isSuccess) {
+      bottleneckAnalyses = bottleneckResult.data
     }
 
-    console.log(
-      `Loaded ${initialMetrics.length} metrics and ${initialBottlenecks.length} bottlenecks for dashboard`
+    // Fetch production logs for the selected cell and date range
+    const logsResult = await getProductionLogsByDateRangeAction(
+      defaultCellId,
+      startDateStr,
+      endDateStr
     )
-  } catch (error) {
-    console.error("Error preparing analytics data:", error)
-    // Show empty state with error handling in the UI
-    return (
-      <div className="bg-destructive/10 mt-4 rounded-md p-4">
-        <p>Error loading analytics data. Please try again later.</p>
-      </div>
-    )
+
+    if (logsResult.isSuccess) {
+      productionLogs = logsResult.data
+    }
+
+    // Fetch aggregated metrics for the selected cell (last 30 days)
+    const aggregatedResult = await getAggregatedEfficiencyMetricsAction({
+      cellId: defaultCellId,
+      period: "month"
+    })
+
+    if (aggregatedResult.isSuccess) {
+      aggregatedMetrics = aggregatedResult.data
+    }
   }
 
   return (
-    <EfficiencyDashboard
-      userId={userId}
-      initialCells={cells}
-      initialMetrics={initialMetrics}
-      initialBottlenecks={initialBottlenecks}
-    />
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Analytics Dashboard
+          </h1>
+          <p className="text-muted-foreground">
+            Manufacturing efficiency metrics and bottleneck analysis
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <HierarchySelector
+            cells={cells}
+            valueStreams={valueStreams}
+            defaultCellId={defaultCellId}
+          />
+
+          <DateRangeSelector
+            defaultStartDate={startDateStr}
+            defaultEndDate={endDateStr}
+          />
+        </div>
+      </div>
+
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="efficiency">Efficiency</TabsTrigger>
+          <TabsTrigger value="bottlenecks">Bottlenecks</TabsTrigger>
+          <TabsTrigger value="trends">Trends</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Avg. Efficiency
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {aggregatedMetrics?.avgEfficiency?.toFixed(1) ?? "N/A"}%
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  Average efficiency over the last 30 days
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Avg. Attainment
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {aggregatedMetrics?.avgAttainment?.toFixed(1) ?? "N/A"}%
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  Average attainment over the last 30 days
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Parts
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {aggregatedMetrics?.totalParts?.toLocaleString() || 0}
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  Total parts produced in the last 30 days
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Downtime
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {aggregatedMetrics?.totalDowntime
+                    ? Math.round(aggregatedMetrics.totalDowntime / 3600)
+                    : 0}{" "}
+                  hrs
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  Total downtime over the last 30 days
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <Card className="col-span-2">
+              <CardHeader>
+                <CardTitle>Production Trends</CardTitle>
+                <CardDescription>
+                  Weekly production volume and efficiency trends
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                <ProductionTrendsChart data={efficiencyMetrics} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Generate Metrics</CardTitle>
+                <CardDescription>
+                  Calculate efficiency metrics from production data
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BatchMetricsCalculator cellId={defaultCellId} />
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="efficiency" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Efficiency Analysis</CardTitle>
+              <CardDescription>
+                Detailed efficiency metrics for {defaultCellName}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <EfficiencyDashboard
+                metrics={efficiencyMetrics}
+                cellId={defaultCellId}
+                cellName={defaultCellName}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="bottlenecks" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Bottleneck Analysis</CardTitle>
+              <CardDescription>
+                Detected bottlenecks and their impact on production
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <BottleneckAnalysisDashboard
+                bottlenecks={bottleneckAnalyses}
+                cellId={defaultCellId}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="trends" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Production Trends</CardTitle>
+              <CardDescription>
+                Historical trends and performance analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[500px]">
+              <ProductionTrendsChart
+                data={efficiencyMetrics}
+                showDetails={true}
+                productionLogs={productionLogs}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }

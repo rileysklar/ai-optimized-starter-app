@@ -27,15 +27,42 @@ import {
   Book,
   LineChart,
   Factory,
-  Anvil
+  Anvil,
+  Loader2
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { ThemeSwitcher } from "@/components/utilities/theme-switcher"
 import { UserButton } from "@clerk/nextjs"
+import { useState, useEffect } from "react"
+
+// Custom hook to track navigation state
+function useNavigationLoading() {
+  const pathname = usePathname()
+  const [loadingItem, setLoadingItem] = useState<string | null>(null)
+  const [prevPathname, setPrevPathname] = useState(pathname)
+
+  useEffect(() => {
+    // When pathname changes, navigation has completed
+    if (prevPathname !== pathname) {
+      setLoadingItem(null)
+      setPrevPathname(pathname)
+    }
+  }, [pathname, prevPathname])
+
+  // Function to set loading state on navigation start
+  const onNavigate = (href: string) => {
+    if (href !== pathname) {
+      setLoadingItem(href)
+    }
+  }
+
+  return { loadingItem, onNavigate }
+}
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const { loadingItem, onNavigate } = useNavigationLoading()
 
   const navItems = [
     {
@@ -67,7 +94,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const manufacturingItems = [
     {
-      title: "Production",
+      title: "Attainment",
       href: "/manufacturing",
       icon: BarChart
     },
@@ -76,7 +103,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       href: "/manufacturing/input",
       icon: Anvil
     },
-
     {
       title: "Cells",
       href: "/manufacturing/cells",
@@ -111,15 +137,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       {...props}
     >
       <SidebarHeader className="p-3">
-        <div className="flex items-center px-2 py-1">
+        <div className="flex items-center justify-between px-2 py-1">
           <div className="flex items-center gap-2">
             <div className="flex items-center space-x-2 hover:cursor-pointer hover:opacity-80">
-              <Link href="/" className="flex items-center text-xl font-bold">
+              <Link
+                href="/"
+                className="flex items-center text-xl font-bold"
+                onClick={() => onNavigate("/")}
+              >
                 <Factory className="mr-2 size-4" />
                 CellFlow
               </Link>
             </div>
           </div>
+
+          {loadingItem === "/" && (
+            <div className="flex items-center" title="Loading...">
+              <Loader2 className="text-primary ml-2 size-4 animate-spin" />
+            </div>
+          )}
         </div>
       </SidebarHeader>
 
@@ -137,7 +173,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
             return (
               <div key={item.href} className="flex flex-col gap-2">
-                <Link href={item.href}>
+                <Link href={item.href} onClick={() => onNavigate(item.href)}>
                   <Button
                     variant={isActive ? "secondary" : "ghost"}
                     size="sm"
@@ -145,6 +181,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   >
                     <item.icon className="size-4" />
                     {item.title}
+                    {loadingItem === item.href && (
+                      <Loader2 className="text-muted-foreground ml-auto size-3 animate-spin" />
+                    )}
                   </Button>
                 </Link>
               </div>
@@ -166,7 +205,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
             return (
               <div key={item.href} className="flex flex-col gap-2">
-                <Link href={item.href}>
+                <Link href={item.href} onClick={() => onNavigate(item.href)}>
                   <Button
                     variant={isActive ? "secondary" : "ghost"}
                     size="sm"
@@ -174,6 +213,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   >
                     <item.icon className="size-4" />
                     {item.title}
+                    {loadingItem === item.href && (
+                      <Loader2 className="text-muted-foreground ml-auto size-3 animate-spin" />
+                    )}
                   </Button>
                 </Link>
               </div>

@@ -36,10 +36,10 @@ interface CellType {
 
 interface EfficiencyMetric {
   id: string
-  cellId: string
+  cellId: string | null
   date: string
   efficiency: number
-  attainmentPercentage?: number
+  attainmentPercentage?: number | string
   lossPercentage: number
   totalLossMinutes: number
   totalBreakMinutes: number
@@ -131,12 +131,15 @@ export default function EfficiencyDashboard({
                 : 0),
           lossPercentage:
             100 -
-            (metric.attainmentPercentage ||
-              (typeof metric.efficiency === "number"
+            (metric.attainmentPercentage
+              ? typeof metric.attainmentPercentage === "number"
+                ? metric.attainmentPercentage
+                : parseFloat(metric.attainmentPercentage as string)
+              : typeof metric.efficiency === "number"
                 ? metric.efficiency
                 : typeof metric.efficiency === "string"
                   ? parseFloat(metric.efficiency)
-                  : 0)),
+                  : 0),
           totalLossMinutes: metric.downtimeMinutes
             ? parseFloat(metric.downtimeMinutes as string)
             : metric.totalDowntime

@@ -27,7 +27,6 @@ export default async function DocsPage({ params }: DocsPageProps) {
 
   return (
     <div className="container py-6">
-      <h1 className="mb-6 text-3xl font-bold">Documentation</h1>
       <Suspense fallback={<DocViewerSkeleton />}>
         <DocPageContent docName={params.docName} />
       </Suspense>
@@ -87,7 +86,6 @@ async function DocPageContent({ docName }: { docName: string }) {
     <div className="grid grid-cols-1 gap-6 md:grid-cols-[250px_1fr]">
       <div className="md:sticky md:top-6 md:h-[calc(100vh-8rem)] md:self-start">
         <div className="bg-card max-h-full overflow-auto rounded-lg p-4 shadow">
-          <h3 className="mb-3 text-lg font-medium">Documentation</h3>
           <ul className="space-y-2">
             {docs.map(doc => (
               <li key={doc.filename}>
@@ -106,7 +104,7 @@ async function DocPageContent({ docName }: { docName: string }) {
           </ul>
         </div>
       </div>
-      <div className="w-full overflow-auto">
+      <div className="w-[100%] overflow-auto">
         <DocViewer content={content} />
       </div>
     </div>

@@ -659,7 +659,7 @@ export function HourXHourTracker({
             ))}
             <TableRow>
               <TableCell colSpan={12}>
-                <div className="flex flex-col items-center py-2">
+                <div className="flex flex-col py-2">
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <label
@@ -705,7 +705,7 @@ export function HourXHourTracker({
                           )}
                         </SelectContent>
                       </Select>
-                      <Button
+                      {/* <Button
                         variant="outline"
                         size="sm"
                         onClick={() => {
@@ -713,7 +713,7 @@ export function HourXHourTracker({
                         }}
                       >
                         Manage Parts
-                      </Button>
+                      </Button> */}
                     </div>
                   </div>
                 </div>
@@ -818,30 +818,39 @@ export function HourXHourTracker({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="mb-2 grid grid-cols-4 gap-2 border-b pb-2">
+              {/* Standard Setup Times */}
+              <div className="mb-1 border-b pb-1 text-sm font-medium">
+                Standard Setup Times
+              </div>
+              <div className="mb-2 grid grid-cols-4 gap-2 pb-2">
                 <div className="text-center font-medium">M1</div>
                 <div className="text-center font-medium">M2</div>
                 <div className="text-center font-medium">M3</div>
                 <div className="text-center font-medium">M4</div>
               </div>
 
-              <div className="grid grid-cols-4 gap-2">
+              <div className="mb-4 grid grid-cols-4 gap-2">
                 <div className="text-center">10</div>
                 <div className="text-center">10</div>
                 <div className="text-center">10</div>
                 <div className="text-center">10</div>
               </div>
 
-              <div className="mt-4 border-t pt-2">
-                <div className="mb-2 grid grid-cols-4 gap-2 border-b pb-2">
-                  <div className="text-center font-medium">M1</div>
-                  <div className="text-center font-medium">M2</div>
-                  <div className="text-center font-medium">M3</div>
-                  <div className="text-center font-medium">M4</div>
-                </div>
+              {/* Part-Specific Setup Times */}
+              <div className="mb-1 border-b pb-1 text-sm font-medium">
+                Part-Specific Setup Times
+              </div>
+              <div className="mb-2 grid grid-cols-4 gap-2 pb-2">
+                <div className="text-center font-medium">M1</div>
+                <div className="text-center font-medium">M2</div>
+                <div className="text-center font-medium">M3</div>
+                <div className="text-center font-medium">M4</div>
+              </div>
 
-                <div className="space-y-2">
-                  <div className="grid grid-cols-4 gap-2">
+              <div className="space-y-2">
+                <div className="mb-1 flex items-center">
+                  <span className="mr-2 text-xs font-medium">Part A:</span>
+                  <div className="grid flex-1 grid-cols-4 gap-2">
                     <div className="text-center">10</div>
                     <div className="bg-yellow-100 text-center dark:bg-yellow-900/40">
                       5
@@ -853,8 +862,11 @@ export function HourXHourTracker({
                       4
                     </div>
                   </div>
+                </div>
 
-                  <div className="grid grid-cols-4 gap-2">
+                <div className="flex items-center">
+                  <span className="mr-2 text-xs font-medium">Part B:</span>
+                  <div className="grid flex-1 grid-cols-4 gap-2">
                     <div className="text-center">10</div>
                     <div className="bg-yellow-100 text-center dark:bg-yellow-900/40">
                       5
@@ -865,6 +877,27 @@ export function HourXHourTracker({
                     <div className="bg-green-100 text-center dark:bg-green-900/40">
                       2
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Legend */}
+              <div className="mt-4 border-t pt-2">
+                <div className="mb-1 text-xs font-medium">
+                  Time Reduction Legend:
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  <div className="flex items-center">
+                    <div className="mr-1 size-3 rounded-sm bg-green-100 dark:bg-green-900/40"></div>
+                    <span className="text-xs">High (≥50%)</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="mr-1 size-3 rounded-sm bg-yellow-100 dark:bg-yellow-900/40"></div>
+                    <span className="text-xs">Medium (≥40%)</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="mr-1 size-3 rounded-sm bg-amber-100 dark:bg-amber-900/40"></div>
+                    <span className="text-xs">Low (≥20%)</span>
                   </div>
                 </div>
               </div>

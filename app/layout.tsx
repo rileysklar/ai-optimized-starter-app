@@ -5,7 +5,7 @@ import {
 import { Toaster } from "@/components/ui/toaster"
 import { Providers } from "@/components/utilities/providers"
 import { TailwindIndicator } from "@/components/utilities/tailwind-indicator"
-import { cn } from "@/lib/utils"
+import { cn } from "@/app/manufacturing/lib/utils"
 import { ClerkProvider } from "@clerk/nextjs"
 import { auth } from "@clerk/nextjs/server"
 import type { Metadata } from "next"

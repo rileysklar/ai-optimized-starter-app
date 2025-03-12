@@ -499,7 +499,9 @@ export function HourXHourTracker({
           <Button
             variant="outline"
             className="flex items-center gap-2"
-            onClick={() => window.open("/manufacturing/input", "_blank")}
+            onClick={() => {
+              "/manufacturing/input"
+            }}
           >
             <PlusCircle className="size-4" />
             New/Edit Parts

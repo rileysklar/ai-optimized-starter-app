@@ -31,11 +31,12 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table"
-import { CalendarIcon, FileDown, RefreshCw } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { CalendarIcon, FileDown, RefreshCw, AlertCircle } from "lucide-react"
 import { getProductionLogsByDateRangeAction } from "@/actions/db/production-logs-actions"
 import { SelectCell } from "@/db/schema"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils"
+import { cn } from "@/app/manufacturing/lib/utils"
 
 interface ProductionHistoryViewerProps {
   userId: string
@@ -70,6 +71,7 @@ export function ProductionHistoryViewer({
   const [endDate, setEndDate] = useState<Date>(new Date())
   const [productionLogs, setProductionLogs] = useState<ProductionLog[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Load production logs when cell or date range changes
   useEffect(() => {
@@ -83,6 +85,7 @@ export function ProductionHistoryViewer({
     if (!selectedCell) return
 
     setIsLoading(true)
+    setError(null)
 
     try {
       const result = await getProductionLogsByDateRangeAction(
@@ -93,11 +96,16 @@ export function ProductionHistoryViewer({
 
       if (result.isSuccess) {
         setProductionLogs(result.data)
+        if (result.data.length === 0) {
+          setError("No production logs found for the selected date range")
+        }
       } else {
+        setError("Failed to load production logs: " + result.message)
         toast.error("Failed to load production logs")
       }
     } catch (error) {
       console.error("Error loading production logs:", error)
+      setError("An unexpected error occurred while loading production logs")
       toast.error("An error occurred while loading production logs")
     } finally {
       setIsLoading(false)
@@ -111,50 +119,63 @@ export function ProductionHistoryViewer({
       return
     }
 
-    // Create CSV content
-    const headers = [
-      "Date",
-      "Shift",
-      "Part Number",
-      "Description",
-      "Quantity",
-      "Standard Time",
-      "Actual Time",
-      "Difference",
-      "Efficiency"
-    ]
-    const csvContent = [
-      headers.join(","),
-      ...productionLogs.map(log =>
-        [
-          format(new Date(log.date), "MM/dd/yyyy"),
-          log.shift,
-          `"${log.partNumber}"`,
-          `"${log.description}"`,
-          log.quantity,
-          log.standardTime,
-          log.actualTime,
-          log.difference,
-          `${log.efficiency}%`
-        ].join(",")
+    try {
+      // Create CSV content
+      const headers = [
+        "Date",
+        "Shift",
+        "Cell",
+        "Part Number",
+        "Description",
+        "Quantity",
+        "Standard Time",
+        "Actual Time",
+        "Difference",
+        "Efficiency"
+      ]
+      const csvContent = [
+        headers.join(","),
+        ...productionLogs.map(log =>
+          [
+            format(new Date(log.date), "MM/dd/yyyy"),
+            log.shift,
+            `"${log.cellName}"`,
+            `"${log.partNumber}"`,
+            `"${log.description}"`,
+            log.quantity,
+            log.standardTime,
+            log.actualTime,
+            log.difference,
+            `${log.efficiency}%`
+          ].join(",")
+        )
+      ].join("\n")
+
+      // Create and download the file
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.setAttribute("href", url)
+      link.setAttribute(
+        "download",
+        `production-history-${format(new Date(), "yyyy-MM-dd")}.csv`
       )
-    ].join("\n")
+      link.style.visibility = "hidden"
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
 
-    // Create and download the file
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.setAttribute("href", url)
-    link.setAttribute(
-      "download",
-      `production-history-${format(new Date(), "yyyy-MM-dd")}.csv`
-    )
-    link.style.visibility = "hidden"
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+      toast.success("CSV file exported successfully")
+    } catch (error) {
+      console.error("Error exporting to CSV:", error)
+      toast.error("Failed to export data to CSV")
+    }
+  }
 
-    toast.success("CSV file exported successfully")
+  // Get cell name from ID
+  const getCellName = (cellId: string): string => {
+    const cell = initialCells.find(c => c.id === cellId)
+    return cell ? cell.name : "Unknown Cell"
   }
 
   return (
@@ -249,14 +270,16 @@ export function ProductionHistoryViewer({
                 onClick={loadProductionLogs}
                 disabled={!selectedCell || isLoading}
               >
-                <RefreshCw className="size-4" />
+                <RefreshCw
+                  className={cn("size-4", isLoading && "animate-spin")}
+                />
                 Refresh
               </Button>
               <Button
                 variant="outline"
                 className="flex items-center gap-2"
                 onClick={exportToCSV}
-                disabled={productionLogs.length === 0}
+                disabled={productionLogs.length === 0 || isLoading}
               >
                 <FileDown className="size-4" />
                 Export CSV
@@ -266,94 +289,123 @@ export function ProductionHistoryViewer({
         </CardContent>
       </Card>
 
-      {/* Production Logs Table */}
-      <Card>
-        <CardContent className="pt-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Shift</TableHead>
-                <TableHead>Part Number</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-center">Quantity</TableHead>
-                <TableHead className="text-center">Standard Time</TableHead>
-                <TableHead className="text-center">Actual Time</TableHead>
-                <TableHead className="text-center">Difference</TableHead>
-                <TableHead className="text-center">Efficiency</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="py-8 text-center">
-                    <div className="flex justify-center">
-                      <div className="size-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    </div>
-                    <div className="mt-2">Loading production logs...</div>
-                  </TableCell>
-                </TableRow>
-              ) : productionLogs.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={9}
-                    className="text-muted-foreground py-8 text-center"
-                  >
-                    {selectedCell
-                      ? "No production logs found for the selected date range."
-                      : "Please select a cell to view production logs."}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                productionLogs.map(log => (
-                  <TableRow key={log.id}>
-                    <TableCell>
-                      {format(new Date(log.date), "MM/dd/yyyy")}
-                    </TableCell>
-                    <TableCell>{log.shift}</TableCell>
-                    <TableCell>{log.partNumber}</TableCell>
-                    <TableCell>{log.description}</TableCell>
-                    <TableCell className="text-center">
-                      {log.quantity}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {log.standardTime} min
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {log.actualTime} min
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "text-center font-medium",
-                        log.difference > 0 ? "text-destructive" : "",
-                        log.difference < 0
-                          ? "text-green-600 dark:text-green-500"
-                          : ""
-                      )}
-                    >
-                      {log.difference} min
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "text-center font-medium",
-                        log.efficiency < 75 ? "text-destructive" : "",
-                        log.efficiency >= 90
-                          ? "text-green-600 dark:text-green-500"
-                          : "",
-                        log.efficiency >= 75 && log.efficiency < 90
-                          ? "text-amber-600 dark:text-amber-500"
-                          : ""
-                      )}
-                    >
-                      {log.efficiency}%
-                    </TableCell>
+      {/* Loading state */}
+      {isLoading && (
+        <div className="flex justify-center p-8">
+          <div className="flex flex-col items-center gap-2">
+            <RefreshCw className="text-primary size-8 animate-spin" />
+            <p className="text-muted-foreground">Loading production logs...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error state */}
+      {error && !isLoading && (
+        <Alert variant="destructive" className="bg-red-50 dark:bg-red-950/30">
+          <AlertCircle className="size-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Data display */}
+      {!isLoading && !error && productionLogs.length > 0 && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Shift</TableHead>
+                    <TableHead>Cell</TableHead>
+                    <TableHead>Part #</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Quantity</TableHead>
+                    <TableHead className="text-right">Std. Time</TableHead>
+                    <TableHead className="text-right">Act. Time</TableHead>
+                    <TableHead className="text-right">Diff.</TableHead>
+                    <TableHead className="text-right">Efficiency</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {productionLogs.map(log => (
+                    <TableRow key={log.id}>
+                      <TableCell>
+                        {format(new Date(log.date), "MM/dd/yyyy")}
+                      </TableCell>
+                      <TableCell>{log.shift}</TableCell>
+                      <TableCell>{log.cellName}</TableCell>
+                      <TableCell>{log.partNumber}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">
+                        {log.description}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {log.quantity}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {log.standardTime} min
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {log.actualTime} min
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right",
+                          log.difference > 0
+                            ? "text-red-500"
+                            : log.difference < 0
+                              ? "text-green-500"
+                              : ""
+                        )}
+                      >
+                        {log.difference > 0 ? "+" : ""}
+                        {log.difference} min
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          "text-right font-medium",
+                          log.efficiency < 85
+                            ? "text-red-500"
+                            : log.efficiency >= 100
+                              ? "text-green-500"
+                              : ""
+                        )}
+                      >
+                        {log.efficiency}%
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Empty state */}
+      {!isLoading && !error && productionLogs.length === 0 && selectedCell && (
+        <div className="flex h-[300px] w-full flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
+          <div className="flex flex-col items-center gap-2">
+            <AlertCircle className="text-muted-foreground size-8" />
+            <h3 className="text-lg font-medium">No production data found</h3>
+            <p className="text-muted-foreground">
+              No production logs found for the selected date range.
+            </p>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => {
+                const thirtyDaysAgo = new Date()
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+                setStartDate(thirtyDaysAgo)
+                loadProductionLogs()
+              }}
+            >
+              Try last 30 days
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

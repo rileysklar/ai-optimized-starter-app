@@ -1,13 +1,14 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
-  CardTitle,
-  CardDescription
+  CardTitle
 } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select,
   SelectContent,
@@ -15,48 +16,38 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Label } from "@/components/ui/label"
-import { Calendar } from "@/components/ui/calendar"
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer
-} from "recharts"
-import { SelectCell } from "@/db/schema"
-import { CalendarIcon, Download } from "lucide-react"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from "@/components/ui/popover"
-import { format, subDays, addDays, eachDayOfInterval } from "date-fns"
-import { useState } from "react"
-import { cn } from "@/lib/utils"
-import { calculateMachineEfficiencyAction } from "@/actions/db/efficiency-metrics-actions"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
+import { Plus, AlertCircle } from "lucide-react"
+import { getEfficiencyMetricsAction } from "@/actions/db/efficiency-metrics-actions"
 import { getBottleneckAnalysisAction } from "@/actions/db/bottleneck-analysis-actions"
-import { toast } from "sonner"
-import { DateRange } from "react-day-picker"
+import { getMachinesByCellIdAction } from "@/actions/db/machines-actions"
+import { BottleneckDialog } from "./bottleneck-dialog"
+import { CalculateMissingMetrics } from "./calculate-missing-metrics"
+import { format } from "date-fns"
+import { SelectMachine, SelectBottleneckAnalysis } from "@/db/schema"
+
+// Define types locally to avoid import issues
+interface CellType {
+  id: string
+  name: string
+  valueStreamId: string
+}
 
 interface EfficiencyMetric {
   id: string
-  machineId: string
   cellId: string
   date: string
-  totalCycleTime: number
-  standardCycleTime: number
-  totalDowntime: number
+  efficiency: number
+  attainmentPercentage?: number
+  lossPercentage: number
   totalLossMinutes: number
   totalBreakMinutes: number
-  lossPercentage: number
-  attainmentPercentage: number
+  totalCycleTime: number
+  standardCycleTime: number
+  totalDowntime?: number
+  totalRuntime?: number
+  downtimeMinutes?: string | number
 }
 
 interface BottleneckAnalysis {
@@ -69,479 +60,504 @@ interface BottleneckAnalysis {
   recommendedAction: string
 }
 
-interface EfficiencyDashboardProps {
+export default function EfficiencyDashboard({
+  userId,
+  initialCells = [],
+  initialMetrics = [],
+  initialBottlenecks = []
+}: {
   userId: string
-  initialCells: SelectCell[]
+  initialCells: CellType[]
   initialMetrics: EfficiencyMetric[]
   initialBottlenecks: BottleneckAnalysis[]
-}
-
-export function EfficiencyDashboard({
-  userId,
-  initialCells,
-  initialMetrics,
-  initialBottlenecks
-}: EfficiencyDashboardProps) {
-  const [selectedCell, setSelectedCell] = useState<string>("")
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: subDays(new Date(), 7),
-    to: new Date()
-  })
-  const [metrics, setMetrics] = useState<EfficiencyMetric[]>(
-    initialMetrics || []
+}) {
+  const [selectedCellId, setSelectedCellId] = useState<string>(
+    initialCells.length > 0 ? initialCells[0].id : ""
   )
-  const [bottlenecks, setBottlenecks] = useState<BottleneckAnalysis[]>(
-    initialBottlenecks || []
-  )
-  const [activeTab, setActiveTab] = useState<string>("efficiency")
 
-  const handleCellChange = (value: string) => {
-    setSelectedCell(value)
-    fetchData(value, dateRange)
-  }
+  const [metrics, setMetrics] = useState<EfficiencyMetric[]>(initialMetrics)
+  const [bottlenecks, setBottlenecks] =
+    useState<BottleneckAnalysis[]>(initialBottlenecks)
+  const [machines, setMachines] = useState<SelectMachine[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleDateRangeChange = (range: DateRange | undefined) => {
-    if (range?.from && range?.to) {
-      setDateRange(range)
-      fetchData(selectedCell, range)
-    }
-  }
+  // Bottleneck dialog state
+  const [isBottleneckDialogOpen, setIsBottleneckDialogOpen] = useState(false)
+  const [editingBottleneck, setEditingBottleneck] =
+    useState<BottleneckAnalysis | null>(null)
 
-  const handleExportData = () => {
-    // In a real app, this would generate a CSV or Excel export
-    toast.success("Data export started")
+  const handleCellChange = async (cellId: string) => {
+    if (!cellId) return
 
-    // Example of how to create a CSV export
-    if (metrics.length === 0) {
-      toast.error("No data to export")
-      return
-    }
-
-    // Create CSV content
-    const headers =
-      "Date,Cell ID,Attainment %,Loss %,Total Loss Minutes,Total Break Minutes\n"
-    const rows = metrics
-      .map(
-        metric =>
-          `${metric.date},${metric.cellId},${metric.attainmentPercentage},${metric.lossPercentage},${metric.totalLossMinutes},${metric.totalBreakMinutes}`
-      )
-      .join("\n")
-
-    const csvContent = headers + rows
-
-    // Create download link
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.setAttribute("href", url)
-    link.setAttribute(
-      "download",
-      `efficiency-${format(new Date(), "yyyy-MM-dd")}.csv`
-    )
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-  }
-
-  const fetchData = async (cellId: string, range: DateRange | undefined) => {
-    if (!cellId || !range?.from || !range?.to) return
+    setSelectedCellId(cellId)
+    setIsLoading(true)
+    setError(null)
 
     try {
-      // Generate array of dates in the range
-      const dates = eachDayOfInterval({
-        start: range.from,
-        end: range.to
-      })
+      // Get a date range for the past 7 days
+      const today = new Date()
+      const sevenDaysAgo = new Date()
+      sevenDaysAgo.setDate(today.getDate() - 7)
 
-      // Fetch efficiency metrics for each date
-      const metricsPromises = dates.map(date =>
-        calculateMachineEfficiencyAction({
-          cellId,
-          date: format(date, "yyyy-MM-dd")
-        })
-      )
+      const todayStr = today.toISOString().split("T")[0]
+      const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0]
 
-      const metricsResults = await Promise.all(metricsPromises)
-      const validMetrics = metricsResults
-        .filter(result => result.isSuccess && result.data)
-        .map(result => result.data) as EfficiencyMetric[]
-
-      setMetrics(validMetrics)
-
-      // Fetch bottleneck analysis
-      const bottleneckResult = await getBottleneckAnalysisAction({
+      // Fetch efficiency metrics
+      const metricsResult = await getEfficiencyMetricsAction({
         cellId,
-        startDate: format(range.from, "yyyy-MM-dd"),
-        endDate: format(range.to, "yyyy-MM-dd")
+        startDate: sevenDaysAgoStr,
+        endDate: todayStr
       })
 
-      if (bottleneckResult.isSuccess && bottleneckResult.data) {
-        setBottlenecks(bottleneckResult.data)
+      if (metricsResult.isSuccess && metricsResult.data) {
+        // Ensure metrics are properly formatted
+        const formattedMetrics = metricsResult.data.map(metric => ({
+          id: metric.id || `metric-${Math.random().toString(36).substr(2, 9)}`,
+          cellId: metric.cellId,
+          date: metric.date,
+          efficiency:
+            typeof metric.efficiency === "number"
+              ? metric.efficiency
+              : typeof metric.efficiency === "string"
+                ? parseFloat(metric.efficiency)
+                : 0,
+          attainmentPercentage:
+            metric.attainmentPercentage ||
+            (typeof metric.efficiency === "number"
+              ? metric.efficiency
+              : typeof metric.efficiency === "string"
+                ? parseFloat(metric.efficiency)
+                : 0),
+          lossPercentage:
+            100 -
+            (metric.attainmentPercentage ||
+              (typeof metric.efficiency === "number"
+                ? metric.efficiency
+                : typeof metric.efficiency === "string"
+                  ? parseFloat(metric.efficiency)
+                  : 0)),
+          totalLossMinutes: metric.downtimeMinutes
+            ? parseFloat(metric.downtimeMinutes as string)
+            : metric.totalDowntime
+              ? Math.round(metric.totalDowntime / 60)
+              : 0,
+          totalBreakMinutes: 30, // Default break time
+          totalCycleTime: metric.totalRuntime || 0,
+          standardCycleTime: 480 * 60 // 8 hours in seconds
+        }))
+
+        setMetrics(formattedMetrics)
+      } else {
+        // If no metrics were found, set empty array
+        console.log("No efficiency metrics found for this cell")
+        setMetrics([])
+      }
+
+      // Fetch bottleneck data
+      const bottlenecksResult = await getBottleneckAnalysisAction({
+        cellId,
+        startDate: sevenDaysAgoStr,
+        endDate: todayStr
+      })
+
+      if (
+        bottlenecksResult.isSuccess &&
+        bottlenecksResult.data &&
+        bottlenecksResult.data.length > 0
+      ) {
+        console.log(
+          `Successfully retrieved ${bottlenecksResult.data.length} bottleneck analyses`
+        )
+        const formattedBottlenecks = bottlenecksResult.data.map(b => ({
+          id: b.id,
+          cellId: b.cellId,
+          date: b.date,
+          bottleneckMachineId: b.bottleneckMachineId || `machine-1`,
+          bottleneckPercentage: b.bottleneckSeverity
+            ? parseFloat(b.bottleneckSeverity.toString())
+            : 0,
+          impactMinutes: b.bottleneckSeverity
+            ? Math.round(parseFloat(b.bottleneckSeverity.toString()) * 4.8)
+            : 0,
+          recommendedAction: b.notes || "Review machine performance"
+        }))
+        setBottlenecks(formattedBottlenecks)
+      } else {
+        console.log("No bottleneck analysis data found in database")
+        setBottlenecks([])
+      }
+
+      // Fetch machines for the selected cell
+      const machinesResult = await getMachinesByCellIdAction(cellId)
+      if (machinesResult.isSuccess && machinesResult.data) {
+        setMachines(machinesResult.data)
+      } else {
+        setMachines([])
       }
     } catch (error) {
-      console.error("Error fetching efficiency data:", error)
-      toast.error("Failed to fetch efficiency data")
+      console.error("Error fetching data:", error)
+      setError("Failed to load efficiency data. Please try again.")
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  // Prepare chart data
-  const efficiencyChartData = metrics.map(metric => ({
-    date: format(new Date(metric.date), "MM/dd"),
-    attainment: metric.attainmentPercentage,
-    loss: metric.lossPercentage
-  }))
+  // Handle bottleneck dialog
+  const handleOpenBottleneckDialog = (bottleneck?: BottleneckAnalysis) => {
+    setEditingBottleneck(bottleneck || null)
+    setIsBottleneckDialogOpen(true)
+  }
 
-  const downtimeChartData = metrics.map(metric => ({
-    date: format(new Date(metric.date), "MM/dd"),
-    loss: metric.totalLossMinutes,
-    breaks: metric.totalBreakMinutes
-  }))
+  const handleBottleneckAdded = (bottleneck: SelectBottleneckAnalysis) => {
+    // If editing, replace the existing bottleneck
+    if (editingBottleneck) {
+      setBottlenecks(prev =>
+        prev.map(b =>
+          b.id === bottleneck.id
+            ? {
+                ...b,
+                bottleneckMachineId:
+                  bottleneck.bottleneckMachineId || b.bottleneckMachineId,
+                bottleneckPercentage: bottleneck.bottleneckSeverity
+                  ? parseFloat(bottleneck.bottleneckSeverity.toString())
+                  : b.bottleneckPercentage,
+                impactMinutes: bottleneck.bottleneckSeverity
+                  ? Math.round(
+                      parseFloat(bottleneck.bottleneckSeverity.toString()) * 4.8
+                    )
+                  : b.impactMinutes,
+                recommendedAction: bottleneck.notes || b.recommendedAction
+              }
+            : b
+        )
+      )
+    } else {
+      // Add the new bottleneck
+      const newBottleneck: BottleneckAnalysis = {
+        id: bottleneck.id,
+        cellId: bottleneck.cellId,
+        date: bottleneck.date,
+        bottleneckMachineId: bottleneck.bottleneckMachineId || "",
+        bottleneckPercentage: bottleneck.bottleneckSeverity
+          ? parseFloat(bottleneck.bottleneckSeverity.toString())
+          : 0,
+        impactMinutes: bottleneck.bottleneckSeverity
+          ? Math.round(
+              parseFloat(bottleneck.bottleneckSeverity.toString()) * 4.8
+            )
+          : 0,
+        recommendedAction: bottleneck.notes || "Review machine performance"
+      }
+      setBottlenecks(prev => [...prev, newBottleneck])
+    }
+  }
+
+  // Prepare data for charts
+  const efficiencyChartData = metrics
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(metric => ({
+      date: formatDate(metric.date),
+      Efficiency: Number(metric.efficiency.toFixed(1)),
+      "Loss %": Number(metric.lossPercentage.toFixed(1))
+    }))
+
+  const downtimeChartData = metrics
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(metric => ({
+      date: formatDate(metric.date),
+      "Downtime (min)": Math.round(metric.totalLossMinutes),
+      "Break Time (min)": metric.totalBreakMinutes
+    }))
+
+  const bottleneckChartData = bottlenecks
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(bottleneck => ({
+      date: formatDate(bottleneck.date),
+      "Impact (%)": Number(bottleneck.bottleneckPercentage.toFixed(1)),
+      "Impact (min)": bottleneck.impactMinutes
+    }))
+
+  // Helper function to format dates
+  function formatDate(dateString: string) {
+    try {
+      const date = new Date(dateString)
+      return format(date, "MMM d")
+    } catch (error) {
+      return dateString
+    }
+  }
 
   return (
-    <div className="mx-auto max-w-[1600px] space-y-6">
-      <div className="bg-card flex flex-wrap items-center gap-4 rounded-lg border p-4">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="cell-select">Cell</Label>
-          <Select value={selectedCell} onValueChange={handleCellChange}>
-            <SelectTrigger id="cell-select" className="w-40">
-              <SelectValue placeholder="Select Cell" />
+    <div className="container py-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold tracking-tight">
+          Manufacturing Efficiency
+        </h1>
+        <p className="text-muted-foreground">
+          Monitor and analyze production efficiency and bottlenecks.
+        </p>
+      </div>
+
+      <div className="mb-6 flex flex-col gap-4 md:flex-row">
+        <div className="w-full md:w-64">
+          <label className="mb-2 block text-sm font-medium">Select Cell</label>
+          <Select
+            value={selectedCellId}
+            onValueChange={handleCellChange}
+            disabled={isLoading}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select cell" />
             </SelectTrigger>
             <SelectContent>
-              {initialCells.map(cell => (
-                <SelectItem key={cell.id} value={cell.id}>
-                  {cell.name}
+              {initialCells.length === 0 ? (
+                <SelectItem value="no-cells" disabled>
+                  No cells available
                 </SelectItem>
-              ))}
+              ) : (
+                initialCells.map(cell => (
+                  <SelectItem key={cell.id} value={cell.id}>
+                    {cell.name}
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label>Date Range</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-[240px] justify-start text-left font-normal"
-              >
-                <CalendarIcon className="mr-2 size-4" />
-                {dateRange?.from ? (
-                  dateRange.to ? (
-                    <>
-                      {format(dateRange.from, "LLL dd, y")} -{" "}
-                      {format(dateRange.to, "LLL dd, y")}
-                    </>
-                  ) : (
-                    format(dateRange.from, "LLL dd, y")
-                  )
-                ) : (
-                  <span>Pick a date range</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="center">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={dateRange?.from}
-                selected={dateRange}
-                onSelect={handleDateRangeChange}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        <div className="ml-auto">
-          <Button
-            variant="outline"
-            className="flex items-center gap-2"
-            onClick={handleExportData}
-          >
-            <Download className="size-4" />
-            Export Data
-          </Button>
-        </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-4 grid w-full grid-cols-2">
-          <TabsTrigger value="efficiency">Efficiency Metrics</TabsTrigger>
-          <TabsTrigger value="bottlenecks">Bottleneck Analysis</TabsTrigger>
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="size-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="mb-6">
+        <CalculateMissingMetrics cellId={selectedCellId} />
+      </div>
+
+      <Tabs defaultValue="efficiency" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="efficiency">Efficiency</TabsTrigger>
+          <TabsTrigger value="downtime">Downtime</TabsTrigger>
+          <TabsTrigger value="bottlenecks">Bottlenecks</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="efficiency" className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Attainment Chart */}
-            <Card className="shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle>Attainment Percentage</CardTitle>
-                <CardDescription>
-                  Daily attainment percentage over the selected time period
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="h-80">
-                {efficiencyChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={efficiencyChartData}
-                      margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="attainment"
-                        stroke="#4ade80"
-                        strokeWidth={2}
-                        name="Attainment %"
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="loss"
-                        stroke="#f87171"
-                        strokeWidth={2}
-                        name="Loss %"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <p className="text-muted-foreground">No data available</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Downtime Chart */}
-            <Card className="shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle>Downtime Minutes</CardTitle>
-                <CardDescription>Loss and break minutes by day</CardDescription>
-              </CardHeader>
-              <CardContent className="h-80">
-                {downtimeChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={downtimeChartData}
-                      margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="loss" fill="#f87171" name="Loss Minutes" />
-                      <Bar
-                        dataKey="breaks"
-                        fill="#60a5fa"
-                        name="Break Minutes"
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex h-full items-center justify-center">
-                    <p className="text-muted-foreground">No data available</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Efficiency Metrics Table */}
-          <Card className="shadow-sm">
+        <TabsContent value="efficiency" className="space-y-4">
+          <Card>
             <CardHeader>
-              <CardTitle>Detailed Metrics</CardTitle>
+              <CardTitle>Efficiency Metrics</CardTitle>
               <CardDescription>
-                Daily efficiency metrics for the selected cell
+                Daily production efficiency and loss percentage
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-lg border">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-muted/50">
-                      <th className="p-2 text-left font-medium">Date</th>
-                      <th className="p-2 text-left font-medium">
-                        Attainment %
-                      </th>
-                      <th className="p-2 text-left font-medium">Loss %</th>
-                      <th className="p-2 text-left font-medium">
-                        Loss Minutes
-                      </th>
-                      <th className="p-2 text-left font-medium">
-                        Break Minutes
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {metrics.length > 0 ? (
-                      metrics.map((metric, index) => (
-                        <tr key={index} className="border-t">
-                          <td className="p-2">
-                            {format(new Date(metric.date), "MMM dd, yyyy")}
-                          </td>
-                          <td
-                            className={cn(
-                              "p-2 font-medium",
-                              metric.attainmentPercentage >= 90
-                                ? "text-green-600"
-                                : metric.attainmentPercentage >= 75
-                                  ? "text-amber-600"
-                                  : "text-red-600"
-                            )}
-                          >
-                            {metric.attainmentPercentage.toFixed(1)}%
-                          </td>
-                          <td className="p-2">
-                            {metric.lossPercentage.toFixed(1)}%
-                          </td>
-                          <td className="p-2">{metric.totalLossMinutes}</td>
-                          <td className="p-2">{metric.totalBreakMinutes}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="text-muted-foreground p-4 text-center"
-                        >
-                          No data available. Select a cell and date range to
-                          view metrics.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="bottlenecks" className="space-y-6">
-          {/* Bottleneck Analysis */}
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Bottleneck Summary</CardTitle>
-              <CardDescription>
-                Analysis of bottlenecks in the production process
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-hidden rounded-lg border">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-muted/50">
-                      <th className="p-2 text-left font-medium">Date</th>
-                      <th className="p-2 text-left font-medium">
-                        Bottleneck Machine
-                      </th>
-                      <th className="p-2 text-left font-medium">Impact %</th>
-                      <th className="p-2 text-left font-medium">
-                        Impact Minutes
-                      </th>
-                      <th className="p-2 text-left font-medium">
-                        Recommended Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {bottlenecks.length > 0 ? (
-                      bottlenecks.map((bottleneck, index) => (
-                        <tr key={index} className="border-t">
-                          <td className="p-2">
-                            {format(new Date(bottleneck.date), "MMM dd, yyyy")}
-                          </td>
-                          <td className="p-2">
-                            Machine{" "}
-                            {bottleneck.bottleneckMachineId.split("-").pop()}
-                          </td>
-                          <td
-                            className={cn(
-                              "p-2 font-medium",
-                              bottleneck.bottleneckPercentage >= 75
-                                ? "text-red-600"
-                                : bottleneck.bottleneckPercentage >= 50
-                                  ? "text-amber-600"
-                                  : "text-green-600"
-                            )}
-                          >
-                            {bottleneck.bottleneckPercentage.toFixed(1)}%
-                          </td>
-                          <td className="p-2">{bottleneck.impactMinutes}</td>
-                          <td className="p-2">
-                            {bottleneck.recommendedAction}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="text-muted-foreground p-4 text-center"
-                        >
-                          No bottleneck data available. Select a cell and date
-                          range to view analysis.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Bottleneck Impact Chart */}
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Bottleneck Impact</CardTitle>
-              <CardDescription>
-                Impact of bottlenecks on production efficiency
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="h-80">
-              {bottlenecks.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={bottlenecks.map(b => ({
-                      date: format(new Date(b.date), "MM/dd"),
-                      impact: b.impactMinutes,
-                      machine: `Machine ${b.bottleneckMachineId.split("-").pop()}`
-                    }))}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip
-                      formatter={(value, name, props) => {
-                        if (name === "impact")
-                          return [`${value} minutes`, "Impact"]
-                        return [value, name]
-                      }}
-                    />
-                    <Legend />
-                    <Bar
-                      dataKey="impact"
-                      fill="#ef4444"
-                      name="Impact Minutes"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex h-full items-center justify-center">
+              {isLoading ? (
+                <div className="flex h-96 items-center justify-center">
                   <p className="text-muted-foreground">
-                    No bottleneck data available
+                    Loading efficiency data...
+                  </p>
+                </div>
+              ) : efficiencyChartData.length > 0 ? (
+                <div className="flex h-96 items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold">Efficiency Chart</p>
+                    <p className="text-muted-foreground">
+                      Displaying efficiency metrics for{" "}
+                      {efficiencyChartData.length} days
+                    </p>
+                    <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                      {efficiencyChartData.map((data, i) => (
+                        <div key={i} className="rounded-md border p-4">
+                          <p className="font-medium">{data.date}</p>
+                          <p className="text-xl text-emerald-600">
+                            Efficiency: {data.Efficiency}%
+                          </p>
+                          <p className="text-rose-600">
+                            Loss: {data["Loss %"]}%
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex h-96 items-center justify-center">
+                  <p className="text-muted-foreground">
+                    No efficiency data available. Select a cell with recorded
+                    metrics.
                   </p>
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="downtime" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Downtime Analysis</CardTitle>
+              <CardDescription>
+                Daily production time lost to downtime and breaks
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex h-96 items-center justify-center">
+                  <p className="text-muted-foreground">
+                    Loading downtime data...
+                  </p>
+                </div>
+              ) : downtimeChartData.length > 0 ? (
+                <div className="flex h-96 items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold">Downtime Chart</p>
+                    <p className="text-muted-foreground">
+                      Displaying downtime metrics for {downtimeChartData.length}{" "}
+                      days
+                    </p>
+                    <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                      {downtimeChartData.map((data, i) => (
+                        <div key={i} className="rounded-md border p-4">
+                          <p className="font-medium">{data.date}</p>
+                          <p className="text-xl text-amber-600">
+                            Downtime: {data["Downtime (min)"]} mins
+                          </p>
+                          <p className="text-blue-600">
+                            Breaks: {data["Break Time (min)"]} mins
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex h-96 items-center justify-center">
+                  <p className="text-muted-foreground">
+                    No downtime data available. Select a cell with recorded
+                    metrics.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="bottlenecks" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Bottleneck Analysis</CardTitle>
+                <CardDescription>
+                  Impact of bottlenecks on production
+                </CardDescription>
+              </div>
+              <Button
+                onClick={() => handleOpenBottleneckDialog()}
+                disabled={!selectedCellId || isLoading}
+                size="sm"
+              >
+                <Plus className="mr-2 size-4" />
+                Add Bottleneck
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex h-96 items-center justify-center">
+                  <p className="text-muted-foreground">
+                    Loading bottleneck data...
+                  </p>
+                </div>
+              ) : bottleneckChartData.length > 0 ? (
+                <div>
+                  <div className="h-96 overflow-auto">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                      {bottleneckChartData.map((data, i) => (
+                        <div key={i} className="rounded-md border p-4">
+                          <p className="font-medium">{data.date}</p>
+                          <p className="text-xl text-red-600">
+                            Impact: {data["Impact (%)"]}%
+                          </p>
+                          <p className="text-gray-600">
+                            Minutes lost: {data["Impact (min)"]}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-8 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold">
+                        Recommended Actions
+                      </h3>
+                    </div>
+                    <div className="space-y-2">
+                      {bottlenecks.map(bottleneck => (
+                        <div
+                          key={bottleneck.id}
+                          className="hover:bg-muted/50 cursor-pointer rounded-md border p-4"
+                          onClick={() => handleOpenBottleneckDialog(bottleneck)}
+                        >
+                          <p className="font-medium">
+                            {formatDate(bottleneck.date)} -{" "}
+                            {bottleneck.bottleneckMachineId}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {bottleneck.recommendedAction}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex h-96 flex-col items-center justify-center gap-4">
+                  <p className="text-muted-foreground">
+                    No bottleneck data available.
+                  </p>
+                  <Button
+                    onClick={() => handleOpenBottleneckDialog()}
+                    disabled={!selectedCellId || isLoading}
+                  >
+                    <Plus className="mr-2 size-4" />
+                    Add Bottleneck Analysis
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Bottleneck Dialog */}
+      <BottleneckDialog
+        open={isBottleneckDialogOpen}
+        onOpenChange={setIsBottleneckDialogOpen}
+        onBottleneckAdded={handleBottleneckAdded}
+        editBottleneck={
+          editingBottleneck
+            ? {
+                id: editingBottleneck.id,
+                cellId: editingBottleneck.cellId,
+                date: editingBottleneck.date,
+                bottleneckMachineId:
+                  editingBottleneck.bottleneckMachineId || null,
+                bottleneckSeverity: editingBottleneck.bottleneckPercentage
+                  ? editingBottleneck.bottleneckPercentage.toString()
+                  : null,
+                notes: editingBottleneck.recommendedAction || null,
+                createdAt: new Date(),
+                updatedAt: new Date()
+              }
+            : undefined
+        }
+        machines={machines}
+        cellId={selectedCellId}
+      />
     </div>
   )
 }

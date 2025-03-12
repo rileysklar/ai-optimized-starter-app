@@ -121,3 +121,89 @@ Global styles for the app.
     @apply bg-background text-foreground;
   }
 }
+
+/* Prose styles for markdown content */
+.prose {
+  @apply text-foreground;
+  max-width: 65ch;
+}
+
+.prose a {
+  @apply text-primary hover:underline;
+}
+
+.prose strong {
+  @apply font-bold;
+}
+
+.prose h1 {
+  @apply text-3xl font-bold mt-8 mb-4;
+}
+
+.prose h2 {
+  @apply text-2xl font-bold mt-6 mb-3;
+}
+
+.prose h3 {
+  @apply text-xl font-bold mt-5 mb-2;
+}
+
+.prose h4 {
+  @apply text-lg font-bold mt-4 mb-2;
+}
+
+.prose p {
+  @apply my-4 leading-7;
+}
+
+.prose ul {
+  @apply list-disc pl-6 my-4;
+}
+
+.prose ol {
+  @apply list-decimal pl-6 my-4;
+}
+
+.prose li {
+  @apply mb-1;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-muted pl-4 italic my-4;
+}
+
+.prose code {
+  @apply bg-muted px-1 py-0.5 rounded text-sm;
+}
+
+.prose pre {
+  @apply bg-muted p-4 rounded-md overflow-x-auto my-4;
+}
+
+.prose img {
+  @apply max-w-full h-auto rounded-md my-4;
+}
+
+.prose table {
+  @apply border-collapse table-auto w-full my-4;
+}
+
+.prose th {
+  @apply border border-muted p-2 font-bold bg-muted;
+}
+
+.prose td {
+  @apply border border-muted p-2;
+}
+
+.dark .prose {
+  @apply text-foreground;
+}
+
+.dark .prose code {
+  @apply bg-muted;
+}
+
+.dark .prose pre {
+  @apply bg-muted;
+}

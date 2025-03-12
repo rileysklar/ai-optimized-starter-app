@@ -6,7 +6,7 @@
 
 "use client"
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/app/manufacturing/lib/utils"
 import { motion } from "framer-motion"
 import {
   Code,

@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
+import { Metadata } from "next"
 import { ManufacturingNavbar } from "@/app/manufacturing/_components/manufacturing-navbar"
 import { ProductionHistoryViewer } from "@/app/manufacturing/_components/production-history-viewer"
 import { Skeleton } from "@/components/ui/skeleton"

@@ -8,7 +8,7 @@
 
 import { Button } from "@/components/ui/button"
 import { AnimatedGradientText } from "@/components/magicui/animated-gradient-text"
-import { cn } from "@/lib/utils"
+import { cn } from "@/app/manufacturing/lib/utils"
 import { motion } from "framer-motion"
 import {
   ExternalLink,

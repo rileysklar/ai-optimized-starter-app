@@ -1,8 +1,6 @@
-# 🚀 AI-Optimized Starter App by Materialize Labs
 
 A modern, production-ready fullstack web application template engineered for AI-enhanced development workflows. This template is optimized for rapid development with AI assistants like Cursor and designed to showcase best practices for integrating AI tooling into your development process.
 
-Created by the team at [Materialize Labs](https://materializelabs.com).
 
 ## 🌟 Features
 
@@ -340,10 +338,6 @@ After deployment completes:
 ## 📝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 🎓 Support
-
-If you need help or have questions, please contact [alex@materializelabs.com](mailto:alex@materializelabs.com).
 
 ## 📄 License
 

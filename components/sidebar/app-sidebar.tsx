@@ -26,7 +26,8 @@ import {
   Cpu,
   Book,
   LineChart,
-  Factory
+  Factory,
+  Anvil
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -54,7 +55,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     // },
     {
       title: "Docs",
-      href: "/docs",
+      href: "/manufacturing/docs",
       icon: Book
     },
     {
@@ -71,9 +72,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: BarChart
     },
     {
-      title: "Input",
+      title: "Parts",
       href: "/manufacturing/input",
-      icon: PlusCircle
+      icon: Anvil
     },
 
     {
@@ -135,16 +136,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 : pathname?.startsWith(item.href)
 
             return (
-              <Link key={item.href} href={item.href}>
-                <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  size="sm"
-                  className="w-full justify-start gap-2"
-                >
-                  <item.icon className="size-4" />
-                  {item.title}
-                </Button>
-              </Link>
+              <div key={item.href} className="flex flex-col gap-2">
+                <Link href={item.href}>
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                  >
+                    <item.icon className="size-4" />
+                    {item.title}
+                  </Button>
+                </Link>
+              </div>
             )
           })}
         </div>
@@ -162,16 +165,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 : pathname?.startsWith(item.href)
 
             return (
-              <Link key={item.href} href={item.href}>
-                <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  size="sm"
-                  className="w-full justify-start gap-2"
-                >
-                  <item.icon className="size-4" />
-                  {item.title}
-                </Button>
-              </Link>
+              <div key={item.href} className="flex flex-col gap-2">
+                <Link href={item.href}>
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    size="sm"
+                    className="w-full justify-start gap-2"
+                  >
+                    <item.icon className="size-4" />
+                    {item.title}
+                  </Button>
+                </Link>
+              </div>
             )
           })}
         </div>

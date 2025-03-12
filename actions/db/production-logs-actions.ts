@@ -15,6 +15,7 @@ import {
   machinesTable
 } from "@/db/schema"
 import { gte, lte, desc } from "drizzle-orm"
+import { calculateMachineEfficiencyAction } from "./efficiency-metrics-actions"
 
 // Validation schema for starting a production run
 const startProductionSchema = z.object({
@@ -420,6 +421,24 @@ export async function saveProductionScreenAction(data: z.infer<typeof saveProduc
         .returning();
       
       console.log("Successfully inserted production log:", productionLog);
+      
+      // Automatically calculate efficiency metrics for the current date
+      // Get today's date in YYYY-MM-DD format
+      const today = new Date();
+      const formattedDate = today.toISOString().split('T')[0];
+      
+      try {
+        // Call the action to calculate efficiency metrics
+        console.log(`Automatically calculating efficiency metrics for cell ${validatedData.cellId} on ${formattedDate}`);
+        await calculateMachineEfficiencyAction({
+          cellId: validatedData.cellId,
+          date: formattedDate
+        });
+        console.log("Efficiency metrics calculation triggered successfully");
+      } catch (metricsError) {
+        // Don't fail the entire operation if metrics calculation fails
+        console.error("Failed to calculate efficiency metrics:", metricsError);
+      }
       
       return {
         isSuccess: true,

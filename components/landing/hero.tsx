@@ -7,7 +7,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { cn } from "@/app/manufacturing/lib/utils"
 import { motion } from "framer-motion"
 import {
   ArrowRight,
@@ -173,10 +173,10 @@ export const HeroSection = () => {
             className="z-10 mb-4"
           >
             <Link
-              href="https://github.com/materialize-labs/ai-optimized-starter-app"
+              href="#"
               target="_blank"
               rel="noopener noreferrer"
-              className="border-border bg-card/50 text-muted-foreground group inline-flex items-center rounded-full border px-3 py-1 text-sm leading-none no-underline backdrop-blur-sm"
+              className="border-border bg-card/50 text-muted-foreground group inline-flex items-center rounded-full border px-3 py-2 text-sm leading-none no-underline backdrop-blur-sm"
             >
               <Factory className="text-primary mr-1 size-3.5" />
               <span className="mr-1">Manufacturing Efficiency</span>

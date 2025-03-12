@@ -51,6 +51,15 @@ export const efficiencyMetricsTable = pgTable("efficiency_metrics", {
   partsProduced: integer("parts_produced").notNull(),
   efficiency: decimal("efficiency", { precision: 5, scale: 2 }).notNull(), // stored as percentage
 
+  // Added fields for enhanced metrics
+  attainmentPercentage: decimal("attainment_percentage", {
+    precision: 5,
+    scale: 2
+  }), // actual vs target
+  targetCount: text("target_count"), // expected production count
+  actualCount: text("actual_count"), // actual production count
+  downtimeMinutes: text("downtime_minutes"), // downtime in minutes (for ease of display)
+
   // Standard timestamps
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")

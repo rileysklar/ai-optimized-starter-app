@@ -42,6 +42,7 @@ import { toast } from "sonner"
 import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { saveProductionScreenAction } from "@/actions/db/production-logs-actions"
+import { useConfetti } from "@/app/manufacturing/lib/hooks/use-confetti"
 
 interface ProductionRun {
   id: string
@@ -93,6 +94,7 @@ export function HourXHourTracker({
     lossPercentage: 0
   })
   const [selectKey, setSelectKey] = useState<number>(0)
+  const { triggerSuccess } = useConfetti()
 
   // Handlers
   const handleCellChange = (value: string) => {
@@ -262,6 +264,11 @@ export function HourXHourTracker({
               updatedRun.machine4CompleteTime
             ) {
               updatedRun.completed = true
+
+              // Will trigger confetti when the production cycle is fully completed
+              setTimeout(() => {
+                triggerSuccess()
+              }, 300)
             }
 
             return updatedRun
@@ -384,6 +391,10 @@ export function HourXHourTracker({
 
       if (result.isSuccess) {
         setSaveSuccess(true)
+
+        // Trigger the confetti celebration on successful save
+        triggerSuccess()
+
         toast.success("✅ Production data saved!", {
           description:
             "All production data has been successfully saved to the database.",

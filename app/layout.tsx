@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { Providers } from "@/components/utilities/providers"
 import { TailwindIndicator } from "@/components/utilities/tailwind-indicator"
 import { cn } from "@/app/manufacturing/lib/utils"
+import { ConfettiProvider } from "@/app/manufacturing/lib/hooks/use-confetti"
 import { ClerkProvider } from "@clerk/nextjs"
 import { auth } from "@clerk/nextjs/server"
 import type { Metadata } from "next"
@@ -48,11 +49,13 @@ export default async function RootLayout({
             enableSystem={false}
             disableTransitionOnChange
           >
-            {children}
+            <ConfettiProvider>
+              {children}
 
-            <TailwindIndicator />
+              <TailwindIndicator />
 
-            <Toaster />
+              <Toaster />
+            </ConfettiProvider>
           </Providers>
         </body>
       </html>

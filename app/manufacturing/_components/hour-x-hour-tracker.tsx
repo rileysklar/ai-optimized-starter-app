@@ -84,7 +84,6 @@ export function HourXHourTracker({
   const [date, setDate] = useState<Date>(new Date())
   const [shift, setShift] = useState<string>("1st")
   const [runningParts, setRunningParts] = useState<ProductionRun[]>([])
-  const [isNewPartDialogOpen, setIsNewPartDialogOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [metrics, setMetrics] = useState<EfficiencyMetrics>({
@@ -93,6 +92,7 @@ export function HourXHourTracker({
     totalBreakMinutes: 0,
     lossPercentage: 0
   })
+  const [selectKey, setSelectKey] = useState<number>(0)
 
   // Handlers
   const handleCellChange = (value: string) => {
@@ -115,13 +115,12 @@ export function HourXHourTracker({
     try {
       if (!selectedCell) {
         toast.error("Please select a cell first", {
-          duration: 4000,
-          position: "top-center",
+          duration: 2000,
+          position: "bottom-right",
           style: {
-            background: "var(--toast-error-background, #FEF3C7)",
-            color: "var(--toast-error-foreground, #92400E)",
-            border: "1px solid var(--toast-error-border, #F59E0B)",
-            fontWeight: "bold"
+            background: "var(--toast-error-background)",
+            color: "var(--toast-error-foreground)",
+            border: "1px solid var(--toast-error-border)"
           }
         })
         return
@@ -137,7 +136,7 @@ export function HourXHourTracker({
       console.log("Found part:", part)
       const startTime = new Date()
 
-      // Create a mock run ID for demonstration
+      // Create a run ID
       const mockRunId = `run-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 
       // Determine standard time based on bottleneck machine
@@ -192,25 +191,15 @@ export function HourXHourTracker({
         style: {
           background: "var(--toast-success-background)",
           color: "var(--toast-success-foreground)",
-          border: "1px solid var(--toast-success-border)",
-          fontWeight: "bold"
+          border: "1px solid var(--toast-success-border)"
         }
       })
 
-      // Force re-render
-      setTimeout(() => {
-        calculateEfficiency()
-      }, 100)
+      // Force re-render and calculate efficiency
+      calculateEfficiency()
     } catch (error) {
       console.error("Failed to add part to production:", error)
-      toast.error("Failed to add part to production", {
-        style: {
-          background: "var(--toast-error-background)",
-          color: "var(--toast-error-foreground)",
-          border: "1px solid var(--toast-error-border)",
-          fontWeight: "bold"
-        }
-      })
+      toast.error("Failed to add part to production")
     }
   }
 
@@ -388,6 +377,8 @@ export function HourXHourTracker({
         metrics
       }
 
+      console.log("Saving production data:", screenData)
+
       // Call the server action
       const result = await saveProductionScreenAction(screenData)
 
@@ -420,8 +411,7 @@ export function HourXHourTracker({
         style: {
           background: "var(--toast-error-background)",
           color: "var(--toast-error-foreground)",
-          border: "1px solid var(--toast-error-border)",
-          fontWeight: "bold"
+          border: "1px solid var(--toast-error-border)"
         }
       })
     } finally {
@@ -509,7 +499,7 @@ export function HourXHourTracker({
           <Button
             variant="outline"
             className="flex items-center gap-2"
-            onClick={() => setIsNewPartDialogOpen(true)}
+            onClick={() => window.open("/manufacturing/input", "_blank")}
           >
             <PlusCircle className="size-4" />
             New/Edit Parts
@@ -657,56 +647,60 @@ export function HourXHourTracker({
             <TableRow>
               <TableCell colSpan={12}>
                 <div className="flex flex-col items-center py-2">
-                  {!selectedCell && (
-                    <div className="mb-3 w-full max-w-xl rounded-r border-l-4 border-amber-500 bg-amber-50 p-3 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
-                      <p className="font-bold">⚠️ Cell selection required</p>
-                      <p>
-                        Please select a cell from the dropdown at the top before
-                        adding parts.
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="flex justify-center gap-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        // Get the first part from the list as an example
-                        if (parts.length > 0) {
-                          handleAddPart(parts[0].id)
-                        } else {
-                          toast.error("No parts available", {
-                            style: {
-                              background: "var(--toast-error-background)",
-                              color: "var(--toast-error-foreground)",
-                              border: "1px solid var(--toast-error-border)",
-                              fontWeight: "bold"
-                            }
-                          })
-                        }
-                      }}
-                    >
-                      Add Test Part to Production
-                    </Button>
-
-                    <div className="ml-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <label
+                        htmlFor="part-select"
+                        className="text-sm font-medium"
+                      >
+                        Select Part:
+                      </label>
                       <Select
+                        key={selectKey}
                         onValueChange={value => {
                           console.log("Part selected:", value)
                           handleAddPart(value)
+                          // Increment the key to force a re-render of the Select component
+                          setSelectKey(prev => prev + 1)
                         }}
                       >
-                        <SelectTrigger className="w-48">
-                          <SelectValue placeholder="Add Part to Production" />
+                        <SelectTrigger
+                          id="part-select"
+                          className={`w-64 ${!selectedCell ? "opacity-50" : ""}`}
+                          disabled={!selectedCell}
+                        >
+                          <SelectValue
+                            placeholder={
+                              !selectedCell
+                                ? "Select a cell first"
+                                : "Choose a part to add"
+                            }
+                          />
                         </SelectTrigger>
                         <SelectContent>
-                          {parts.map(part => (
-                            <SelectItem key={part.id} value={part.id}>
-                              {part.partNumber}
-                            </SelectItem>
-                          ))}
+                          {parts.length === 0 ? (
+                            <div className="text-muted-foreground p-2 text-center text-sm">
+                              No parts available. Add parts in the Parts
+                              Management section.
+                            </div>
+                          ) : (
+                            parts.map(part => (
+                              <SelectItem key={part.id} value={part.id}>
+                                {part.partNumber} - {part.description}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          window.open("/manufacturing/input", "_blank")
+                        }}
+                      >
+                        Manage Parts
+                      </Button>
                     </div>
                   </div>
                 </div>

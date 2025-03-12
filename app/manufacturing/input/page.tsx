@@ -13,6 +13,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { getCellsAction } from "@/actions/db/cells-actions"
 import { getPartsAction } from "@/actions/db/parts-actions"
+import { PartsManager } from "@/app/manufacturing/_components/parts-manager"
+import { SetupTimesManager } from "@/app/manufacturing/_components/setup-times-manager"
+import { SetupTimesSkeleton } from "@/app/manufacturing/_components/setup-times-skeleton"
 
 export const metadata = {
   title: "Data Input | Manufacturing",
@@ -30,8 +33,6 @@ export default async function InputPage() {
 
   return (
     <div className="container py-6">
-      <h1 className="mb-4 text-3xl font-bold">Manufacturing</h1>
-
       <Suspense fallback={<InputSkeleton />}>
         <InputContent userId={userId} />
       </Suspense>
@@ -85,20 +86,7 @@ async function InputContent({ userId }: { userId: string }) {
       </TabsList>
 
       <TabsContent value="parts">
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Parts Management</CardTitle>
-            <CardDescription>
-              Add, edit, or remove parts and their cycle times
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-muted-foreground p-4 text-center">
-              <p>Parts management form will be implemented here.</p>
-              <p className="mt-2">Total parts: {parts?.length || 0}</p>
-            </div>
-          </CardContent>
-        </Card>
+        <PartsManager userId={userId} initialParts={parts || []} />
       </TabsContent>
 
       <TabsContent value="setup">
@@ -110,10 +98,17 @@ async function InputContent({ userId }: { userId: string }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-muted-foreground p-4 text-center">
-              <p>Setup times configuration will be implemented here.</p>
-              <p className="mt-2">Cells available: {cells?.length || 0}</p>
-            </div>
+            {cells && cells.length > 0 ? (
+              <SetupTimesManager
+                userId={userId}
+                initialCells={cells}
+                initialSetupTimes={[]}
+              />
+            ) : (
+              <div className="text-muted-foreground p-4 text-center">
+                <p>No cells available. Please create cells first.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </TabsContent>

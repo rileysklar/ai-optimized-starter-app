@@ -6,12 +6,15 @@ import { z } from "zod"
 import { eq, and, sql } from "drizzle-orm"
 import { 
   productionLogsTable, 
-  machinesTable, 
+  productionMachinesTable, 
   downtimeLogsTable,
   downtimeReasonEnum,
   InsertProductionLog,
-  InsertDowntimeLog
+  InsertDowntimeLog,
+  cellsTable,
+  machinesTable
 } from "@/db/schema"
+import { gte, lte, desc } from "drizzle-orm"
 
 // Validation schema for starting a production run
 const startProductionSchema = z.object({
@@ -166,6 +169,61 @@ export async function getProductionLogsByCellAction(cellId: string): Promise<Act
   }
 }
 
+// Helper function to generate mock data for testing
+function generateMockProductionLogs(cellId: string, start: Date, end: Date): ActionState<any[]> {
+  const mockData = []
+  
+  // Create a date iterator
+  const currentDate = new Date(start)
+  
+  // Generate data for each day in the range
+  while (currentDate <= end) {
+    // Generate 1-3 entries per day
+    const entriesPerDay = Math.floor(Math.random() * 3) + 1
+    
+    for (let i = 0; i < entriesPerDay; i++) {
+      // Randomize part details
+      const partNumber = `PART-${1000 + Math.floor(Math.random() * 9000)}`
+      const description = `${['Aluminum', 'Steel', 'Plastic', 'Composite'][Math.floor(Math.random() * 4)]} ${['Bracket', 'Housing', 'Connector', 'Frame', 'Support'][Math.floor(Math.random() * 5)]}`
+      const standardTime = Math.floor(Math.random() * 20) + 5 // 5-25 minutes
+      
+      // Randomize actual time with some variance
+      const variance = (Math.random() * 0.4) - 0.2 // -20% to +20%
+      const actualTime = Math.max(1, Math.round(standardTime * (1 + variance)))
+      
+      // Calculate difference and efficiency
+      const difference = actualTime - standardTime
+      const efficiency = Math.round((standardTime / actualTime) * 100)
+      
+      // Create the log entry
+      mockData.push({
+        id: `log-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        date: new Date(currentDate).toISOString(),
+        shift: ['1st', '2nd', '3rd'][Math.floor(Math.random() * 3)],
+        cellId,
+        cellName: `Cell ${cellId.slice(-1).toUpperCase()}`,
+        partNumber,
+        description,
+        quantity: Math.floor(Math.random() * 10) + 1, // 1-10 parts
+        standardTime,
+        actualTime,
+        difference,
+        efficiency,
+        completed: true
+      })
+    }
+    
+    // Move to the next day
+    currentDate.setDate(currentDate.getDate() + 1)
+  }
+  
+  return {
+    isSuccess: true,
+    message: "Mock production logs retrieved successfully",
+    data: mockData
+  }
+}
+
 // Get production logs by date range
 export async function getProductionLogsByDateRangeAction(
   cellId: string,
@@ -173,30 +231,106 @@ export async function getProductionLogsByDateRangeAction(
   endDate: string
 ): Promise<ActionState<any[]>> {
   try {
-    // This is a simplified mock implementation
     console.log("Getting production logs for cell:", cellId, "from", startDate, "to", endDate)
     
-    return {
-      isSuccess: true,
-      message: "Production logs retrieved successfully",
-      data: [
-        {
-          id: "mock-log-1",
-          machineId: "machine-1",
-          userId: "user-1",
-          startTime: startDate + "T09:00:00Z",
-          partsProduced: 10,
-          status: "completed"
-        },
-        {
-          id: "mock-log-2",
-          machineId: "machine-2",
-          userId: "user-1",
-          startTime: endDate + "T14:30:00Z",
-          partsProduced: 5,
-          status: "completed"
+    // Parse dates to ensure proper format
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    
+    // Set end date to end of day
+    end.setHours(23, 59, 59, 999)
+    
+    // First, check if we're using a mock cell ID (for development/testing)
+    const isMockCell = cellId.startsWith('mock-')
+    
+    if (isMockCell) {
+      // Generate mock data for testing
+      return generateMockProductionLogs(cellId, start, end)
+    }
+    
+    // For real cell IDs, query the database
+    try {
+      // Get the cell name for reference
+      const cell = await db.query.cells.findFirst({
+        where: eq(cellsTable.id, cellId)
+      })
+      
+      if (!cell) {
+        return {
+          isSuccess: false,
+          message: `Cell with ID ${cellId} not found`
         }
-      ]
+      }
+      
+      // First get all machines that belong to this cell
+      const machines = await db.query.machines.findMany({
+        where: eq(machinesTable.cellId, cellId)
+      })
+      
+      if (machines.length === 0) {
+        return {
+          isSuccess: true,
+          message: "No machines found for this cell",
+          data: []
+        }
+      }
+      
+      const machineIds = machines.map(machine => machine.id)
+      
+      // Query production logs from the database for these machines
+      const logs = await db
+        .select({
+          logs: productionLogsTable,
+          machine: machinesTable
+        })
+        .from(productionLogsTable)
+        .innerJoin(machinesTable, eq(productionLogsTable.machineId, machinesTable.id))
+        .where(
+          and(
+            sql`${productionLogsTable.machineId} IN (${machineIds.join(',')})`,
+            gte(productionLogsTable.createdAt, start),
+            lte(productionLogsTable.createdAt, end)
+          )
+        )
+        .orderBy(desc(productionLogsTable.createdAt))
+      
+      console.log(`Found ${logs.length} production logs for cell ${cellId}`)
+      
+      // Transform the data to match the expected format
+      const formattedLogs = logs.map(log => {
+        const productionLog = log.logs;
+        const standardCycleTime = log.machine.standardCycleTime ? Math.round(Number(log.machine.standardCycleTime) / 60) : 0;
+        const actualCycleTime = productionLog.actualCycleTime ? Math.round(Number(productionLog.actualCycleTime) / 60) : 0;
+        const timeDifference = actualCycleTime && standardCycleTime ? actualCycleTime - standardCycleTime : 0;
+        
+        return {
+          id: productionLog.id,
+          date: productionLog.createdAt,
+          shift: "1st", // Default shift since it doesn't exist in schema
+          cellId: cellId,
+          cellName: cell.name,
+          partNumber: log.machine.name || "Unknown", // Using machine name as part number
+          description: productionLog.notes || "Unknown",
+          quantity: productionLog.partsProduced || 1,
+          standardTime: standardCycleTime, // Already converted to minutes
+          actualTime: actualCycleTime, // Already converted to minutes
+          difference: timeDifference,
+          efficiency: Number(productionLog.efficiency) || 100,
+          completed: productionLog.endTime !== null
+        }
+      })
+      
+      return {
+        isSuccess: true,
+        message: `Retrieved ${formattedLogs.length} production logs successfully`,
+        data: formattedLogs
+      }
+    } catch (dbError) {
+      console.error("Database error fetching production logs:", dbError)
+      return {
+        isSuccess: false,
+        message: "Database error: Failed to retrieve production logs"
+      }
     }
   } catch (error) {
     console.error("Error getting production logs:", error)
@@ -263,7 +397,7 @@ export async function saveProductionScreenAction(data: z.infer<typeof saveProduc
       }
       
       // Query for a machine that belongs to the selected cell
-      const machines = await db.select().from(machinesTable).where(eq(machinesTable.cellId, validatedData.cellId))
+      const machines = await db.select().from(productionMachinesTable).where(eq(productionMachinesTable.cellId, validatedData.cellId))
       
       console.log("Found machines for cell:", machines)
       
@@ -307,33 +441,12 @@ export async function saveProductionScreenAction(data: z.infer<typeof saveProduc
       };
     }
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return {
-        isSuccess: false,
-        message: error.errors[0].message || "Invalid input data"
-      };
-    }
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error("Error saving production data:", error);
     
-    console.error("Error saving production screen data:", error);
     return {
       isSuccess: false,
-      message: error instanceof Error ? error.message : "Failed to save production screen data"
+      message: `Error saving production data: ${errorMessage}`
     };
   }
 }
-
-// Helper function to determine the downtime reason enum value from the text reason
-function determineDowntimeReason(reasonText: string): string {
-  if (!reasonText) return "other"
-  
-  const lowerReason = reasonText.toLowerCase()
-  
-  if (lowerReason.includes("setup") || lowerReason.includes("set up")) return "setup"
-  if (lowerReason.includes("break") || lowerReason.includes("breakdown")) return "breakdown"
-  if (lowerReason.includes("material") || lowerReason.includes("shortage")) return "material_shortage"
-  if (lowerReason.includes("quality")) return "quality_issue"
-  if (lowerReason.includes("change") || lowerReason.includes("changeover")) return "changeover"
-  if (lowerReason.includes("maintenance")) return "scheduled_maintenance"
-  
-  return "other"
-} 

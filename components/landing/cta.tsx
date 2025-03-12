@@ -1,3 +1,9 @@
+/*
+ * CTA section component with dynamic theme support.
+ * Uses CSS variables defined in globals.css to ensure compatibility with both light and dark modes.
+ * Background gradients and button styles adapt to the current theme.
+ */
+
 "use client"
 
 import { Button } from "@/components/ui/button"
@@ -10,7 +16,8 @@ import {
   BarChart,
   LineChart,
   Factory,
-  Users
+  Users,
+  ArrowRight
 } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
@@ -23,7 +30,18 @@ export const CTASection = () => {
   }, [])
 
   return (
-    <div className="bg-muted/30 container mx-auto rounded-lg px-4 py-24">
+    <div className="border-border bg-card/50 container relative mx-auto overflow-hidden rounded-lg border px-4 py-24 backdrop-blur-sm">
+      {/* Background gradient */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div
+          className="absolute -inset-[10%] opacity-20"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at center, var(--cta-gradient, rgba(62, 207, 142, 0.15)), transparent 70%)"
+          }}
+        />
+      </div>
+
       {!mounted ? (
         // Placeholder while loading
         <div className="flex flex-col items-center justify-center">
@@ -40,7 +58,7 @@ export const CTASection = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
-          className="flex flex-col items-center justify-center text-center"
+          className="relative z-10 flex flex-col items-center justify-center text-center"
         >
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
@@ -50,9 +68,8 @@ export const CTASection = () => {
               "mb-6 text-balance text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl"
             )}
           >
-            <AnimatedGradientText>
-              Optimize Your Production
-            </AnimatedGradientText>
+            <span className="text-foreground">Ready to optimize your</span>{" "}
+            <span className="text-primary">production efficiency?</span>
           </motion.h2>
 
           <motion.p
@@ -72,14 +89,24 @@ export const CTASection = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="flex flex-col space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0"
           >
-            <Button asChild size="lg">
+            <Button
+              asChild
+              size="lg"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 group font-medium"
+            >
               <Link href="/manufacturing" className="flex items-center">
                 <Factory className="mr-2 size-4" />
                 Start Production Tracking
+                <ArrowRight className="ml-2 size-4 transition-transform group-hover:translate-x-1" />
               </Link>
             </Button>
 
-            <Button asChild variant="outline" size="lg">
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="border-border bg-card/50 hover:bg-card hover:text-primary group backdrop-blur-sm"
+            >
               <Link
                 href="/manufacturing/analytics"
                 className="flex items-center"

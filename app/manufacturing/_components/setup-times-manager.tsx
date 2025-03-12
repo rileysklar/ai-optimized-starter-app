@@ -39,7 +39,7 @@ interface SetupTimesManagerProps {
 export function SetupTimesManager({
   userId,
   initialCells,
-  initialSetupTimes
+  initialSetupTimes = []
 }: SetupTimesManagerProps) {
   // State
   const [selectedCell, setSelectedCell] = useState<string>("")

@@ -5,7 +5,11 @@ import { HourXHourTracker } from "@/app/manufacturing/_components/hour-x-hour-tr
 import { ProductionTrackerSkeleton } from "@/app/manufacturing/_components/production-tracker-skeleton"
 import { getCellsAction } from "@/actions/db/cells-actions"
 import { getPartsAction } from "@/actions/db/parts-actions"
-import { SelectCell, SelectPart } from "@/db/schema"
+import { ManufacturingNavbar } from "@/app/manufacturing/_components/manufacturing-navbar"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 export const metadata = {
   title: "Production Tracking | Manufacturing",
@@ -23,8 +27,6 @@ export default async function ManufacturingPage() {
 
   return (
     <div className="container py-6">
-      <h1 className="mb-4 text-3xl font-bold">Manufacturing</h1>
-
       <Suspense fallback={<ProductionTrackerSkeleton />}>
         <ProductionTrackerContent userId={userId} />
       </Suspense>
@@ -54,42 +56,27 @@ async function ProductionTrackerContent({ userId }: { userId: string }) {
     ]
   }
 
-  // Log available parts for debugging
-  console.log("Available parts:", parts)
-  console.log("Available cells:", availableCells)
+  // If no parts are available, show an alert
+  if (!parts || parts.length === 0) {
+    return (
+      <div className="space-y-6">
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertTitle>No parts available</AlertTitle>
+          <AlertDescription>
+            You need to create parts before you can track production. Please add
+            parts in the Parts Management section.
+          </AlertDescription>
+        </Alert>
 
-  // Create a variable to hold the parts we'll use
-  let availableParts: SelectPart[] = []
-
-  // Add any existing parts
-  if (parts && parts.length > 0) {
-    availableParts = [...parts]
-  }
-
-  // Ensure we have at least one part for testing
-  if (availableParts.length === 0) {
-    // Add a mock part if none exist
-    availableParts = [
-      {
-        id: "mock-part-1",
-        partNumber: "TEST-1001",
-        description: "Test Part",
-        cycleTimeMachine1: 10,
-        cycleTimeMachine2: 15,
-        cycleTimeMachine3: 12,
-        cycleTimeMachine4: 8,
-        bottleneckMachine: 2,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ]
+        <Button asChild>
+          <Link href="/manufacturing/input">Go to Parts Management</Link>
+        </Button>
+      </div>
+    )
   }
 
   return (
-    <HourXHourTracker
-      userId={userId}
-      parts={availableParts}
-      cells={availableCells}
-    />
+    <HourXHourTracker userId={userId} parts={parts} cells={availableCells} />
   )
 }

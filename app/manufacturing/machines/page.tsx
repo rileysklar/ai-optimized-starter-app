@@ -23,8 +23,6 @@ export default function MachinesManagementPage() {
   return (
     <div className="container mx-auto py-6">
       <div className="mt-8">
-        <h1 className="mb-6 text-3xl font-bold">Machine Management</h1>
-
         <Suspense fallback={<MachinesLoading />}>
           <MachinesContent />
         </Suspense>

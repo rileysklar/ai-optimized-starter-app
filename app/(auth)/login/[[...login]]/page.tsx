@@ -9,7 +9,7 @@ export default function LoginPage() {
 
   return (
     <SignIn
-      forceRedirectUrl="/contacts"
+      forceRedirectUrl="/manufacturing"
       appearance={{ baseTheme: theme === "dark" ? dark : undefined }}
     />
   )

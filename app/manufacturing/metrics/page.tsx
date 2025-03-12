@@ -23,10 +23,6 @@ export default async function MetricsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Efficiency Metrics</h1>
-      </div>
-
       <p className="text-muted-foreground">
         Monitor production efficiency metrics, bottleneck analysis, and
         production performance over time. Use these insights to optimize

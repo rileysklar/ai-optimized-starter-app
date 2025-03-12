@@ -44,6 +44,14 @@ Global styles for the app.
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
     
+    /* Landing page gradient variables */
+    --highlight-gradient-from: rgba(0, 112, 243, 0.08);
+    --highlight-gradient-to: rgba(0, 112, 243, 0.02);
+    --grid-line-color: rgba(0, 112, 243, 0.03);
+    --accent-gradient-from: rgba(0, 112, 243, 0.06);
+    --accent-gradient-to: rgba(0, 112, 243, 0.02);
+    --cta-gradient: rgba(0, 112, 243, 0.1);
+    
     /* Toast notification variables */
     --toast-error-background: #FEF3C7;
     --toast-error-foreground: #92400E;
@@ -60,7 +68,7 @@ Global styles for the app.
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
+    --primary: 157 69% 52%;
     --primary-foreground: 0 0% 9%;
     --secondary: 0 0% 14.9%;
     --secondary-foreground: 0 0% 98%;
@@ -86,6 +94,14 @@ Global styles for the app.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* Landing page gradient variables - dark mode */
+    --highlight-gradient-from: rgba(62, 207, 142, 0.08);
+    --highlight-gradient-to: rgba(62, 207, 142, 0.02);
+    --grid-line-color: rgba(62, 207, 142, 0.03);
+    --accent-gradient-from: rgba(62, 207, 142, 0.06);
+    --accent-gradient-to: rgba(62, 207, 142, 0.02);
+    --cta-gradient: rgba(62, 207, 142, 0.1);
     
     /* Toast notification variables - dark mode */
     --toast-error-background: #7C2D12;

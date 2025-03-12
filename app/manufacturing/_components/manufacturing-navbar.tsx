@@ -17,7 +17,8 @@ import {
   Settings,
   ChevronDown,
   LayoutDashboard,
-  Factory
+  Factory,
+  History
 } from "lucide-react"
 import { ThemeSwitcher } from "@/components/utilities/theme-switcher"
 import { UserButton } from "@clerk/nextjs"
@@ -64,6 +65,11 @@ export function ManufacturingNavbar() {
       name: "Production",
       href: "/manufacturing",
       icon: <BarChart className="mr-2 size-4" />
+    },
+    {
+      name: "History",
+      href: "/manufacturing/history",
+      icon: <History className="mr-2 size-4" />
     },
     {
       name: "Input",

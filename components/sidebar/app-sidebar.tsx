@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sidebar"
 import {
   BarChart,
-  Contact,
+  History,
   Home,
   PlusCircle,
   Building,
@@ -56,6 +56,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       title: "Docs",
       href: "/docs",
       icon: Book
+    },
+    {
+      title: "History",
+      href: "/manufacturing/history",
+      icon: History
     }
   ]
 
@@ -120,7 +125,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent className="px-3 py-2">
         <div className="space-y-1">
           <p className="text-muted-foreground px-2 py-1.5 text-xs font-medium">
-            Navigation
+            Dashboard
           </p>
 
           {navItems.map(item => {
@@ -150,7 +155,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </p>
 
           {manufacturingItems.map(item => {
-            const isActive = pathname?.startsWith(item.href)
+            const isActive =
+              item.href === "/manufacturing"
+                ? pathname === "/manufacturing" ||
+                  pathname === "/manufacturing/"
+                : pathname?.startsWith(item.href)
 
             return (
               <Link key={item.href} href={item.href}>

@@ -1,3 +1,9 @@
+/*
+ * Features section component with dynamic theme support.
+ * Uses CSS variables defined in globals.css to ensure compatibility with both light and dark modes.
+ * Feature cards use theme-aware colors and gradients for consistent appearance in different themes.
+ */
+
 "use client"
 
 import { cn } from "@/lib/utils"
@@ -74,29 +80,29 @@ const FeatureCard = ({ title, description, icon: Icon }: FeatureProps) => {
     <motion.div
       whileHover={{
         scale: 1.02,
-        backgroundPosition: "100% 50%"
+        y: -4
       }}
-      initial={{ backgroundPosition: "0% 50%" }}
-      transition={{
-        backgroundPosition: {
-          duration: 0.5,
-          ease: "easeInOut"
-        }
-      }}
-      className="group relative overflow-hidden rounded-lg p-[2px] shadow-sm hover:shadow-md"
-      style={{
-        background:
-          "linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #3b82f6)",
-        backgroundSize: "200% 100%"
-      }}
+      className="border-border bg-card/50 hover:border-primary/30 hover:bg-card group relative rounded-lg border p-6 backdrop-blur-sm transition-colors"
     >
-      <div className="bg-card flex h-full flex-col items-center rounded-lg p-6 text-center">
-        <div className="bg-primary/10 mb-4 rounded-full from-blue-500 via-purple-500 to-pink-500 p-3 transition-all duration-300 group-hover:bg-gradient-to-r">
-          <Icon className="text-primary size-6 transition-all duration-300 group-hover:text-white" />
+      <div className="flex flex-col items-start">
+        <div className="bg-muted group-hover:bg-primary/10 mb-4 rounded-full p-3 transition-colors">
+          <Icon className="text-primary size-6" />
         </div>
-        <h3 className="mb-2 text-xl font-medium">{title}</h3>
+
+        <h3 className="text-foreground mb-2 text-xl font-medium">{title}</h3>
         <p className="text-muted-foreground text-sm">{description}</p>
       </div>
+
+      {/* Subtle corner accent */}
+      <div
+        className="absolute right-3 top-3 size-8 rounded-full opacity-0 transition-all duration-300 group-hover:opacity-100"
+        style={{
+          backgroundImage:
+            "linear-gradient(to bottom right, var(--accent-gradient-from, rgba(62, 207, 142, 0.1)), var(--accent-gradient-to, rgba(62, 207, 142, 0.05)))",
+          opacity: 0,
+          transition: "opacity 0.3s ease-out"
+        }}
+      ></div>
     </motion.div>
   )
 }
@@ -110,11 +116,11 @@ export const FeaturesSection = () => {
   }, [])
 
   return (
-    <div className="container mx-auto px-4 pb-8 pt-0">
+    <div className="container mx-auto px-4 pb-24 pt-12">
       {!mounted ? (
         // Placeholder while loading
         <>
-          <div className="mb-6 text-center">
+          <div className="mb-12 text-center">
             <div className="bg-muted mx-auto mb-2 h-10 w-64 animate-pulse rounded-md"></div>
             <div className="bg-muted mx-auto h-6 w-96 animate-pulse rounded-md"></div>
           </div>
@@ -130,6 +136,23 @@ export const FeaturesSection = () => {
       ) : (
         // Actual content when mounted
         <>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-12 text-center"
+          >
+            <h2 className="text-foreground mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
+              <span className="text-foreground">Powerful features for</span>{" "}
+              <span className="text-primary">manufacturing excellence</span>
+            </h2>
+            <p className="text-muted-foreground mx-auto max-w-[800px]">
+              Our platform provides comprehensive tools to track, analyze, and
+              optimize your manufacturing processes with a focus on efficiency
+              and worker wellbeing.
+            </p>
+          </motion.div>
+
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature, index) => (
               <motion.div

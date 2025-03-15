@@ -60,6 +60,8 @@ interface BottleneckAnalysis {
   recommendedAction: string
 }
 
+export { EfficiencyDashboard }
+
 export default function EfficiencyDashboard({
   userId,
   initialCells = [],

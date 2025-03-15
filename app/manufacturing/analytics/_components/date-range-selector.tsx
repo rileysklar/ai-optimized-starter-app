@@ -9,6 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger
 } from "@/components/ui/popover"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CalendarIcon } from "lucide-react"
 import { format, parse } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -24,6 +25,7 @@ export function DateRangeSelector({
 }: DateRangeSelectorProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [activeTab, setActiveTab] = useState<string>("week")
 
   // Parse string dates to Date objects
   const parseDate = (dateStr: string) => {
@@ -62,6 +64,7 @@ export function DateRangeSelector({
 
     setStartDate(start)
     setEndDate(today)
+    setActiveTab("week")
     handleDateChange(start, today)
   }
 
@@ -72,6 +75,7 @@ export function DateRangeSelector({
 
     setStartDate(start)
     setEndDate(today)
+    setActiveTab("month")
     handleDateChange(start, today)
   }
 
@@ -82,18 +86,19 @@ export function DateRangeSelector({
 
     setStartDate(start)
     setEndDate(today)
+    setActiveTab("quarter")
     handleDateChange(start, today)
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="flex items-center gap-2">
+    <div className="bg-background flex w-full flex-wrap items-center gap-3 rounded-md border p-2">
+      <div className="flex flex-1 flex-wrap items-center justify-center gap-2">
         <Popover>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
               className={cn(
-                "w-[130px] justify-start text-left font-normal",
+                "w-[calc(50%-10px)] justify-start text-left font-normal",
                 !startDate && "text-muted-foreground"
               )}
               disabled={isPending}
@@ -122,7 +127,7 @@ export function DateRangeSelector({
             <Button
               variant="outline"
               className={cn(
-                "w-[130px] justify-start text-left font-normal",
+                "w-[calc(50%-10px)] justify-start text-left font-normal",
                 !endDate && "text-muted-foreground"
               )}
               disabled={isPending}
@@ -147,32 +152,29 @@ export function DateRangeSelector({
         </Popover>
       </div>
 
-      <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={setLastWeek}
-          disabled={isPending}
-        >
-          Week
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={setLastMonth}
-          disabled={isPending}
-        >
-          Month
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={setLastQuarter}
-          disabled={isPending}
-        >
-          Quarter
-        </Button>
-      </div>
+      <div className="ml-1 hidden h-8 border-l pl-3 sm:block" />
+
+      <Tabs value={activeTab} className="w-auto">
+        <TabsList>
+          <TabsTrigger value="week" onClick={setLastWeek} disabled={isPending}>
+            Week
+          </TabsTrigger>
+          <TabsTrigger
+            value="month"
+            onClick={setLastMonth}
+            disabled={isPending}
+          >
+            Month
+          </TabsTrigger>
+          <TabsTrigger
+            value="quarter"
+            onClick={setLastQuarter}
+            disabled={isPending}
+          >
+            Quarter
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
     </div>
   )
 }

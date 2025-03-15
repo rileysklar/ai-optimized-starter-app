@@ -1,6 +1,7 @@
 "use client"
 
 import { deleteCellAction } from "@/actions/db/cells-actions"
+import { getMachinesAction } from "@/actions/db/machines-actions"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -30,10 +31,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { PlusCircle, Pencil, Trash } from "lucide-react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import { NewCellDialog } from "./new-cell-dialog"
-import { SelectCell, SelectValueStream } from "@/db/schema"
+import { SelectCell, SelectValueStream, SelectMachine } from "@/db/schema"
 
 interface CellsManagerProps {
   userId: string
@@ -56,6 +57,31 @@ export function CellsManager({
     undefined
   )
   const [isDeleting, setIsDeleting] = useState(false)
+  const [machines, setMachines] = useState<SelectMachine[]>([])
+  const [isLoadingMachines, setIsLoadingMachines] = useState(false)
+
+  // Fetch machines on component mount
+  useEffect(() => {
+    fetchMachines()
+  }, [])
+
+  // Fetch machines function
+  const fetchMachines = async () => {
+    setIsLoadingMachines(true)
+    try {
+      const result = await getMachinesAction()
+      if (result.isSuccess) {
+        setMachines(result.data)
+      } else {
+        toast.error("Failed to fetch machines")
+      }
+    } catch (error) {
+      console.error("Error fetching machines:", error)
+      toast.error("Something went wrong when fetching machines")
+    } finally {
+      setIsLoadingMachines(false)
+    }
+  }
 
   // Handle adding a new cell
   const handleAddCell = () => {
@@ -82,6 +108,7 @@ export function CellsManager({
         toast.success("Cell deleted successfully")
         setCells(cells.filter(c => c.id !== cellToDelete.id))
         setCellToDelete(undefined)
+        fetchMachines() // Refresh machines after deletion
       } else {
         toast.error(result.message || "Failed to delete cell")
       }
@@ -101,17 +128,17 @@ export function CellsManager({
 
   return (
     <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <Card className="mb-6">
+        <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Production Cells</CardTitle>
+            <CardTitle>Cells Management</CardTitle>
             <CardDescription>
-              Manage all production cells and their assignments to value streams
+              Create and manage cells in your manufacturing facility
             </CardDescription>
           </div>
-          <Button onClick={handleAddCell} className="flex items-center gap-2">
+          <Button onClick={handleAddCell} className="flex items-center gap-1">
             <PlusCircle className="size-4" />
-            Add New Cell
+            <span>Add New Cell</span>
           </Button>
         </CardHeader>
         <CardContent>
@@ -119,16 +146,17 @@ export function CellsManager({
             <TableHeader>
               <TableRow>
                 <TableHead>Cell Name</TableHead>
-                <TableHead>Description</TableHead>
                 <TableHead>Value Stream</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Machines</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {cells.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     className="text-muted-foreground py-6 text-center"
                   >
                     No cells defined yet. Click "Add New Cell" to get started.
@@ -139,32 +167,44 @@ export function CellsManager({
                   <TableRow key={cell.id}>
                     <TableCell className="font-medium">{cell.name}</TableCell>
                     <TableCell>
-                      {cell.description || "No description"}
-                    </TableCell>
-                    <TableCell>
                       <Badge variant="outline">
                         {getValueStreamName(cell.valueStreamId)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                    <TableCell>
+                      {isLoadingMachines ? (
+                        <span className="text-muted-foreground text-sm">
+                          Loading...
+                        </span>
+                      ) : (
+                        <span>
+                          {machines.filter(m => m.cellId === cell.id).length}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {cell.description || "No description"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
                         <Button
                           variant="ghost"
-                          size="sm"
+                          size="icon"
                           onClick={() => handleEditCell(cell)}
+                          className="size-8"
                         >
                           <Pencil className="size-4" />
                           <span className="sr-only">Edit</span>
                         </Button>
-
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
                               variant="ghost"
-                              size="sm"
+                              size="icon"
+                              className="size-8"
                               onClick={() => setCellToDelete(cell)}
                             >
-                              <Trash className="text-destructive size-4" />
+                              <Trash className="size-4" />
                               <span className="sr-only">Delete</span>
                             </Button>
                           </AlertDialogTrigger>
@@ -203,6 +243,8 @@ export function CellsManager({
         onOpenChange={setIsDialogOpen}
         editCell={cellToEdit}
         valueStreams={valueStreams}
+        machines={machines}
+        onMachinesUpdated={fetchMachines}
         onCellAdded={(newCell: SelectCell) => {
           if (cellToEdit) {
             // Update existing cell
@@ -211,6 +253,8 @@ export function CellsManager({
             // Add new cell
             setCells([...cells, newCell])
           }
+          // Refresh machines to get updated assignments
+          fetchMachines()
         }}
       />
     </>

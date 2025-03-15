@@ -89,13 +89,16 @@ export function HierarchySelector({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div>
+    <div className="bg-background flex w-full flex-wrap items-center gap-3 rounded-md border p-2">
+      <div className="flex flex-1 flex-wrap items-center gap-3">
         <Select
           value={selectedValueStream}
           onValueChange={handleValueStreamChange}
         >
-          <SelectTrigger className="w-[180px]" disabled={isPending}>
+          <SelectTrigger
+            className="w-[200px] min-w-[200px] flex-1 md:w-auto"
+            disabled={isPending}
+          >
             <SelectValue placeholder="All Value Streams" />
           </SelectTrigger>
           <SelectContent>
@@ -107,12 +110,10 @@ export function HierarchySelector({
             ))}
           </SelectContent>
         </Select>
-      </div>
 
-      <div>
         <Select value={selectedCell} onValueChange={handleCellChange}>
           <SelectTrigger
-            className="w-[180px]"
+            className="w-[180px] min-w-[180px] flex-1 md:w-auto"
             disabled={isPending || cells.length === 0}
           >
             <SelectValue

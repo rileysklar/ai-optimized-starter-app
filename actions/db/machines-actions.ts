@@ -3,7 +3,7 @@
 import { db } from "@/db/db"
 import { ActionState } from "@/types"
 import { z } from "zod"
-import { eq } from "drizzle-orm"
+import { eq, inArray } from "drizzle-orm"
 import { machinesTable, cellsTable, SelectMachine } from "@/db/schema"
 
 // Validation schema for machines
@@ -24,8 +24,15 @@ export async function createMachineAction(data: MachineInput): Promise<ActionSta
     // Validate input
     const validatedData = machineSchema.parse(data)
     
-    // Insert machine into database
-    const [newMachine] = await db.insert(machinesTable).values(validatedData).returning()
+    // Insert machine into database with standardCycleTime converted to string
+    const [newMachine] = await db.insert(machinesTable).values({
+      name: validatedData.name,
+      description: validatedData.description,
+      cellId: validatedData.cellId,
+      machineType: validatedData.machineType,
+      status: validatedData.status,
+      standardCycleTime: validatedData.standardCycleTime.toString()
+    }).returning()
     
     return {
       isSuccess: true,
@@ -142,13 +149,21 @@ export async function updateMachineAction(machineId: string, data: Partial<Machi
     // Validate input
     const validatedData = machineSchema.partial().parse(data)
     
+    // Prepare update data
+    const updateData: Record<string, any> = {
+      ...validatedData,
+      updatedAt: new Date()
+    }
+    
+    // Convert standardCycleTime to string if it exists
+    if (typeof updateData.standardCycleTime === 'number') {
+      updateData.standardCycleTime = updateData.standardCycleTime.toString()
+    }
+    
     // Update machine in database
     const [updatedMachine] = await db
       .update(machinesTable)
-      .set({
-        ...validatedData,
-        updatedAt: new Date()
-      })
+      .set(updateData)
       .where(eq(machinesTable.id, machineId))
       .returning()
     
@@ -176,6 +191,69 @@ export async function updateMachineAction(machineId: string, data: Partial<Machi
     return {
       isSuccess: false,
       message: "Failed to update machine"
+    }
+  }
+}
+
+// Update multiple machines' cell ID
+export async function updateMachinesCellAction(
+  machineIds: string[],
+  cellId: string
+): Promise<ActionState<SelectMachine[]>> {
+  try {
+    // Validate cell ID
+    if (!cellId || !z.string().uuid("Invalid cell ID").safeParse(cellId).success) {
+      return {
+        isSuccess: false,
+        message: "Invalid cell ID"
+      }
+    }
+
+    // Validate machine IDs
+    if (!machineIds || machineIds.length === 0) {
+      return {
+        isSuccess: false,
+        message: "No machines selected"
+      }
+    }
+
+    // Check if all machine IDs are valid UUIDs
+    for (const id of machineIds) {
+      if (!z.string().uuid("Invalid machine ID").safeParse(id).success) {
+        return {
+          isSuccess: false,
+          message: `Invalid machine ID: ${id}`
+        }
+      }
+    }
+    
+    // Update machines in database
+    const updatedMachines = await db
+      .update(machinesTable)
+      .set({
+        cellId: cellId,
+        updatedAt: new Date()
+      })
+      .where(inArray(machinesTable.id, machineIds))
+      .returning()
+    
+    if (!updatedMachines || updatedMachines.length === 0) {
+      return {
+        isSuccess: false,
+        message: "No machines were updated"
+      }
+    }
+    
+    return {
+      isSuccess: true,
+      message: `${updatedMachines.length} machines updated successfully`,
+      data: updatedMachines
+    }
+  } catch (error) {
+    console.error("Error updating machines:", error)
+    return {
+      isSuccess: false,
+      message: "Failed to update machines"
     }
   }
 }

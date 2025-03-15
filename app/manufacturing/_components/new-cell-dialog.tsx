@@ -1,7 +1,9 @@
 "use client"
 
 import { createCellAction, updateCellAction } from "@/actions/db/cells-actions"
+import { updateMachinesCellAction } from "@/actions/db/machines-actions"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -20,8 +22,8 @@ import {
   SelectValue
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { SelectCell, SelectValueStream } from "@/db/schema"
-import { useState } from "react"
+import { SelectCell, SelectValueStream, SelectMachine } from "@/db/schema"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 
 interface NewCellDialogProps {
@@ -30,6 +32,8 @@ interface NewCellDialogProps {
   onCellAdded: (cell: SelectCell) => void
   editCell?: SelectCell
   valueStreams: SelectValueStream[]
+  machines: SelectMachine[]
+  onMachinesUpdated?: () => void
 }
 
 export function NewCellDialog({
@@ -37,7 +41,9 @@ export function NewCellDialog({
   onOpenChange,
   onCellAdded,
   editCell,
-  valueStreams
+  valueStreams,
+  machines,
+  onMachinesUpdated
 }: NewCellDialogProps) {
   // Form state
   const [name, setName] = useState(editCell?.name || "")
@@ -46,6 +52,35 @@ export function NewCellDialog({
     editCell?.valueStreamId || ""
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedMachineIds, setSelectedMachineIds] = useState<string[]>([])
+
+  // Set currently assigned machines when editing
+  useEffect(() => {
+    if (editCell) {
+      const machinesInCell = machines.filter(
+        machine => machine.cellId === editCell.id
+      )
+      setSelectedMachineIds(machinesInCell.map(machine => machine.id))
+    } else {
+      setSelectedMachineIds([])
+    }
+  }, [editCell, machines])
+
+  // Toggle machine selection
+  const toggleMachineSelection = (machineId: string) => {
+    setSelectedMachineIds(prev =>
+      prev.includes(machineId)
+        ? prev.filter(id => id !== machineId)
+        : [...prev, machineId]
+    )
+  }
+
+  // Check if a machine is already assigned to a different cell
+  const isMachineAssignedToOtherCell = (machine: SelectMachine) => {
+    return editCell
+      ? machine.cellId && machine.cellId !== editCell.id
+      : !!machine.cellId
+  }
 
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,20 +100,45 @@ export function NewCellDialog({
         valueStreamId
       }
 
+      // Create or update the cell
       const result = editCell
         ? await updateCellAction(editCell.id, cellData)
         : await createCellAction(cellData)
 
-      if (result.isSuccess) {
-        toast.success(
-          editCell ? "Cell updated successfully" : "New cell added successfully"
-        )
-        onCellAdded(result.data)
-        resetForm()
-        onOpenChange(false)
-      } else {
+      if (!result.isSuccess) {
         toast.error(result.message || "Failed to save cell")
+        setIsSubmitting(false)
+        return
       }
+
+      // Assign machines to the cell if any are selected
+      if (selectedMachineIds.length > 0) {
+        const cellId = result.data.id
+        const machineResult = await updateMachinesCellAction(
+          selectedMachineIds,
+          cellId
+        )
+
+        if (!machineResult.isSuccess) {
+          toast.error(
+            `Cell saved but failed to assign machines: ${machineResult.message}`
+          )
+        } else {
+          toast.success(
+            `${machineResult.data.length} machines assigned to the cell`
+          )
+          if (onMachinesUpdated) {
+            onMachinesUpdated()
+          }
+        }
+      }
+
+      toast.success(
+        editCell ? "Cell updated successfully" : "New cell added successfully"
+      )
+      onCellAdded(result.data)
+      resetForm()
+      onOpenChange(false)
     } catch (error) {
       console.error("Error saving cell:", error)
       toast.error("Something went wrong. Please try again.")
@@ -93,12 +153,18 @@ export function NewCellDialog({
       setName("")
       setDescription("")
       setValueStreamId("")
+      setSelectedMachineIds([])
     }
   }
 
+  // Filter available machines
+  const availableMachines = editCell
+    ? machines
+    : machines.filter(machine => !machine.cellId)
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{editCell ? "Edit Cell" : "Add New Cell"}</DialogTitle>
@@ -160,6 +226,54 @@ export function NewCellDialog({
                   )}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label>Select Machines to Add to Cell</Label>
+              <div className="max-h-[200px] overflow-y-auto rounded-md border p-3">
+                {availableMachines.length === 0 ? (
+                  <p className="text-muted-foreground py-2 text-sm">
+                    No available machines found
+                  </p>
+                ) : (
+                  <div className="grid gap-2">
+                    {availableMachines.map(machine => {
+                      const isAssignedToOther =
+                        isMachineAssignedToOtherCell(machine)
+
+                      return (
+                        <div
+                          key={machine.id}
+                          className="flex items-center space-x-2"
+                        >
+                          <Checkbox
+                            id={`machine-${machine.id}`}
+                            checked={selectedMachineIds.includes(machine.id)}
+                            onCheckedChange={_ =>
+                              toggleMachineSelection(machine.id)
+                            }
+                            disabled={isAssignedToOther}
+                          />
+                          <label
+                            htmlFor={`machine-${machine.id}`}
+                            className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${
+                              isAssignedToOther ? "text-muted-foreground" : ""
+                            }`}
+                          >
+                            {machine.name}
+                            {isAssignedToOther && " (assigned to another cell)"}
+                          </label>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+              <p className="text-muted-foreground mt-1 text-xs">
+                {editCell
+                  ? "You can reassign machines to this cell"
+                  : "Only unassigned machines are shown"}
+              </p>
             </div>
           </div>
 

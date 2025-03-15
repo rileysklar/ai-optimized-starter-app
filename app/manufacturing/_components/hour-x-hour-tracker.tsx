@@ -4,7 +4,8 @@ import { startProductionRunAction } from "@/actions/db/production-logs-actions"
 import { completeProductionCycleAction } from "@/actions/db/production-logs-actions"
 import { logDowntimeAction } from "@/actions/db/downtime-logs-actions"
 import { calculateMachineEfficiencyAction } from "@/actions/db/efficiency-metrics-actions"
-import { SelectCell, SelectPart } from "@/db/schema"
+import { getMachinesByCellIdAction } from "@/actions/db/machines-actions"
+import { SelectCell, SelectMachine, SelectPart } from "@/db/schema"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -36,7 +37,16 @@ import {
   PopoverContent,
   PopoverTrigger
 } from "@/components/ui/popover"
-import { CalendarIcon, PlusCircle, Save, CheckCircle2 } from "lucide-react"
+import {
+  AlertCircle,
+  CalendarIcon,
+  CheckCircle2,
+  Clock,
+  PlusCircle,
+  Save,
+  Timer,
+  Zap
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { useState, useEffect } from "react"
@@ -96,9 +106,51 @@ export function HourXHourTracker({
   const [selectKey, setSelectKey] = useState<number>(0)
   const { triggerSuccess } = useConfetti()
 
+  // New state for machines
+  const [cellMachines, setCellMachines] = useState<SelectMachine[]>([])
+  const [isLoadingMachines, setIsLoadingMachines] = useState(false)
+
+  // Fetch machines when a cell is selected
+  const fetchMachinesByCell = async (cellId: string) => {
+    if (!cellId) return
+
+    setIsLoadingMachines(true)
+    try {
+      const result = await getMachinesByCellIdAction(cellId)
+      if (result.isSuccess) {
+        setCellMachines(result.data)
+      } else {
+        toast.error("Failed to load machines", {
+          description: result.message
+        })
+        setCellMachines([])
+      }
+    } catch (error) {
+      console.error("Error fetching machines:", error)
+      toast.error("Failed to load machines")
+      setCellMachines([])
+    } finally {
+      setIsLoadingMachines(false)
+    }
+  }
+
   // Handlers
   const handleCellChange = (value: string) => {
     setSelectedCell(value)
+    fetchMachinesByCell(value)
+
+    // Reset running parts when changing cell
+    if (runningParts.length > 0) {
+      if (
+        confirm(
+          "Changing the cell will clear current production data. Continue?"
+        )
+      ) {
+        setRunningParts([])
+      } else {
+        return
+      }
+    }
   }
 
   const handleDateChange = (newDate: Date | undefined) => {
@@ -124,6 +176,13 @@ export function HourXHourTracker({
             color: "var(--toast-error-foreground)",
             border: "1px solid var(--toast-error-border)"
           }
+        })
+        return
+      }
+
+      if (cellMachines.length === 0) {
+        toast.error("No machines available for this cell", {
+          description: "Please set up machines for this cell first"
         })
         return
       }
@@ -211,6 +270,12 @@ export function HourXHourTracker({
   ) => {
     try {
       const completeTime = new Date()
+      const run = runningParts.find(r => r.id === runId)
+      if (!run) return
+
+      // Get part information
+      const part = parts.find(p => p.id === run.partId)
+      if (!part) return
 
       // Update the running parts directly without calling the server action
       setRunningParts(
@@ -228,7 +293,6 @@ export function HourXHourTracker({
               updatedRun.machine4CompleteTime = completeTime
 
             // Calculate the time difference if this is the bottleneck machine
-            const part = parts.find(p => p.id === run.partId)
             if (part && part.bottleneckMachine === machineNumber) {
               const startTime = run.startTime.getTime()
               const actualTime = completeTime.getTime() - startTime
@@ -256,19 +320,31 @@ export function HourXHourTracker({
               ) // difference in minutes
             }
 
-            // Check if all operations are complete
-            if (
-              updatedRun.machine1CompleteTime &&
-              updatedRun.machine2CompleteTime &&
-              updatedRun.machine3CompleteTime &&
+            // Check if this was the last machine in the cell
+            const isLastMachineInCell = machineNumber === cellMachines.length
+
+            // Check if all available machines for this cell have completed processing
+            const requiredMachineCount = Math.min(4, cellMachines.length)
+            const completedMachineCount = [
+              updatedRun.machine1CompleteTime,
+              updatedRun.machine2CompleteTime,
+              updatedRun.machine3CompleteTime,
               updatedRun.machine4CompleteTime
-            ) {
+            ]
+              .slice(0, requiredMachineCount)
+              .filter(Boolean).length
+
+            // Mark as complete if all required machines have completed
+            if (completedMachineCount === requiredMachineCount) {
               updatedRun.completed = true
 
               // Will trigger confetti when the production cycle is fully completed
-              setTimeout(() => {
-                triggerSuccess()
-              }, 300)
+              // Only trigger if this is the last machine in the workflow
+              if (isLastMachineInCell) {
+                setTimeout(() => {
+                  triggerSuccess()
+                }, 300)
+              }
             }
 
             return updatedRun
@@ -280,7 +356,38 @@ export function HourXHourTracker({
       // Calculate efficiency after operation completion
       calculateEfficiency()
 
-      toast.success(`Operation ${machineNumber} completed`)
+      // Check if this was the last machine in the cell workflow
+      const isLastMachine = machineNumber === cellMachines.length
+
+      if (isLastMachine) {
+        // Show a more celebratory toast for part completion
+        toast.success(
+          <div className="flex items-center">
+            <div className="mr-2 rounded-full bg-green-100 p-1 dark:bg-green-800">
+              <CheckCircle2 className="size-5 text-green-600 dark:text-green-300" />
+            </div>
+            <div>
+              <div className="font-medium">Part Cycle Complete!</div>
+              <div className="text-sm">
+                {part.partNumber} has completed all operations
+              </div>
+            </div>
+          </div>,
+          {
+            duration: 4000,
+            style: {
+              background: "var(--toast-success-background)",
+              color: "var(--toast-success-foreground)",
+              border: "1px solid var(--toast-success-border)"
+            }
+          }
+        )
+      } else {
+        // Regular operation completion toast
+        toast.success(
+          `Operation ${machineNumber} (${cellMachines[machineNumber - 1]?.name}) completed`
+        )
+      }
     } catch (error) {
       toast.error("Failed to complete operation")
       console.error(error)
@@ -438,6 +545,42 @@ export function HourXHourTracker({
     }
   }, [runningParts.length])
 
+  // Get machine name by number
+  const getMachineName = (machineNumber: number) => {
+    if (cellMachines.length >= machineNumber) {
+      return cellMachines[machineNumber - 1]?.name || `Machine ${machineNumber}`
+    }
+    return `Machine ${machineNumber}`
+  }
+
+  // Get machine index by ID
+  const getMachineIndex = (machineId: string) => {
+    return cellMachines.findIndex(m => m.id === machineId) + 1
+  }
+
+  // Get machine by index (1-based)
+  const getMachineByIndex = (index: number) => {
+    if (index > 0 && index <= cellMachines.length) {
+      return cellMachines[index - 1]
+    }
+    return null
+  }
+
+  // Get machine status badge color
+  const getMachineStatusColor = (status: string) => {
+    switch (status) {
+      case "running":
+        return "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
+      case "down":
+        return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
+      case "maintenance":
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300"
+      case "idle":
+      default:
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header Controls */}
@@ -548,6 +691,55 @@ export function HourXHourTracker({
         </div>
       </div>
 
+      {/* Cell Machines Info */}
+      {selectedCell && (
+        <div className="bg-muted/20 rounded-md border p-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium">Cell Machines</h3>
+            <span className="text-muted-foreground text-xs">
+              {isLoadingMachines
+                ? "Loading machines..."
+                : `${cellMachines.length} machines found`}
+            </span>
+          </div>
+
+          {isLoadingMachines ? (
+            <div className="mt-2 flex items-center space-x-2">
+              <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+              <span className="text-sm">Loading cell machines...</span>
+            </div>
+          ) : cellMachines.length === 0 ? (
+            <div className="mt-2 flex items-center space-x-2 text-amber-500 dark:text-amber-400">
+              <AlertCircle className="size-4" />
+              <span className="text-sm">
+                No machines found for this cell. Please set up machines first.
+              </span>
+            </div>
+          ) : (
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {cellMachines.map((machine, index) => (
+                <div
+                  key={machine.id}
+                  className={`bg-background rounded-md border p-2 ${index < 4 ? "ring-primary/20 ring-1" : ""}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-medium">
+                      Machine {index + 1}
+                    </div>
+                    <div
+                      className={`rounded-full px-1.5 py-0.5 text-xs ${getMachineStatusColor(machine.status)}`}
+                    >
+                      {machine.status}
+                    </div>
+                  </div>
+                  <div className="mt-1 text-sm font-medium">{machine.name}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Production Tracking Table */}
       <div className="overflow-hidden rounded-lg border">
         <Table>
@@ -558,10 +750,16 @@ export function HourXHourTracker({
               <TableHead>Part Description</TableHead>
               <TableHead className="w-16">Qty</TableHead>
               <TableHead className="w-16">Std Time</TableHead>
-              <TableHead>Machine 1</TableHead>
-              <TableHead>Machine 2</TableHead>
-              <TableHead>Machine 3</TableHead>
-              <TableHead>Machine 4</TableHead>
+
+              {/* Dynamic machine columns based on actual machines in the cell */}
+              {cellMachines.length === 0 ? (
+                <TableHead>No Machines</TableHead>
+              ) : (
+                cellMachines.map((machine, index) => (
+                  <TableHead key={machine.id}>{machine.name}</TableHead>
+                ))
+              )}
+
               <TableHead className="w-16">+/-</TableHead>
               <TableHead className="w-28">Lunch Break</TableHead>
               <TableHead>Reason For Time Difference</TableHead>
@@ -571,63 +769,103 @@ export function HourXHourTracker({
             {runningParts.map((run, index) => (
               <TableRow
                 key={index}
-                className={run.completed ? "bg-muted/20" : ""}
+                className={cn(
+                  run.completed ? "bg-green-50 dark:bg-green-950/20" : "",
+                  "group transition-colors duration-100"
+                )}
               >
                 <TableCell>
-                  <Checkbox checked={run.completed} disabled />
+                  <div className="flex items-center justify-center">
+                    {run.completed ? (
+                      <div className="rounded-full bg-green-100 p-1 text-green-800 dark:bg-green-900/60 dark:text-green-300">
+                        <CheckCircle2 className="size-4" />
+                      </div>
+                    ) : (
+                      <div className="rounded-full bg-blue-100 p-1 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
+                        <Clock className="size-4" />
+                      </div>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>{run.partNumber}</TableCell>
                 <TableCell>{run.partDescription}</TableCell>
                 <TableCell>{run.quantity}</TableCell>
                 <TableCell>{run.standardTime}</TableCell>
-                <TableCell>
-                  {run.machine1CompleteTime ? (
-                    format(run.machine1CompleteTime, "h:mm a")
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() => handleCompleteOperation(run.id, 1)}
-                    >
-                      Complete
-                    </Button>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {run.machine2CompleteTime ? (
-                    format(run.machine2CompleteTime, "h:mm a")
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() => handleCompleteOperation(run.id, 2)}
-                    >
-                      Complete
-                    </Button>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {run.machine3CompleteTime ? (
-                    format(run.machine3CompleteTime, "h:mm a")
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() => handleCompleteOperation(run.id, 3)}
-                    >
-                      Complete
-                    </Button>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {run.machine4CompleteTime ? (
-                    format(run.machine4CompleteTime, "h:mm a")
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() => handleCompleteOperation(run.id, 4)}
-                    >
-                      Complete
-                    </Button>
-                  )}
-                </TableCell>
+
+                {/* Dynamic machine cells based on actual machines in the cell */}
+                {cellMachines.length === 0 ? (
+                  <TableCell>-</TableCell>
+                ) : (
+                  cellMachines.map((machine, machineIndex) => {
+                    // Map machine index (0-based) to machine number (1-based)
+                    const machineNum = machineIndex + 1
+                    let completeTime = null
+
+                    // Get completion time based on machine number
+                    switch (machineNum) {
+                      case 1:
+                        completeTime = run.machine1CompleteTime
+                        break
+                      case 2:
+                        completeTime = run.machine2CompleteTime
+                        break
+                      case 3:
+                        completeTime = run.machine3CompleteTime
+                        break
+                      case 4:
+                        completeTime = run.machine4CompleteTime
+                        break
+                    }
+
+                    // Check if this is the bottleneck machine for this part
+                    const part = parts.find(p => p.id === run.partId)
+                    const isBottleneck =
+                      part && part.bottleneckMachine === machineNum
+
+                    return (
+                      <TableCell
+                        key={machine.id}
+                        className={
+                          isBottleneck
+                            ? "relative bg-amber-50 dark:bg-amber-950/20"
+                            : ""
+                        }
+                      >
+                        {isBottleneck && (
+                          <div className="absolute -top-1 right-1">
+                            <Zap className="size-3 text-amber-500" />
+                          </div>
+                        )}
+
+                        {completeTime ? (
+                          <div className="flex items-center space-x-1">
+                            <CheckCircle2 className="size-4 text-green-500" />
+                            <span>
+                              {format(new Date(completeTime), "h:mm a")}
+                            </span>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant={isBottleneck ? "default" : "outline"}
+                            onClick={() =>
+                              handleCompleteOperation(run.id, machineNum)
+                            }
+                            className={
+                              isBottleneck
+                                ? "bg-amber-500 text-white hover:bg-amber-600"
+                                : ""
+                            }
+                          >
+                            {isBottleneck && <Zap className="mr-1 size-3" />}
+                            Complete
+                          </Button>
+                        )}
+                      </TableCell>
+                    )
+                  })
+                )}
+
                 <TableCell
                   className={cn(
                     "font-medium",
@@ -679,14 +917,16 @@ export function HourXHourTracker({
                       >
                         <SelectTrigger
                           id="part-select"
-                          className={`w-64 ${!selectedCell ? "opacity-50" : ""}`}
-                          disabled={!selectedCell}
+                          className={`w-64 ${!selectedCell || cellMachines.length === 0 ? "opacity-50" : ""}`}
+                          disabled={!selectedCell || cellMachines.length === 0}
                         >
                           <SelectValue
                             placeholder={
                               !selectedCell
                                 ? "Select a cell first"
-                                : "Choose a part to add"
+                                : cellMachines.length === 0
+                                  ? "No machines available for this cell"
+                                  : "Choose a part to add"
                             }
                           />
                         </SelectTrigger>
@@ -705,15 +945,6 @@ export function HourXHourTracker({
                           )}
                         </SelectContent>
                       </Select>
-                      {/* <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          window.open("/manufacturing/input", "_blank")
-                        }}
-                      >
-                        Manage Parts
-                      </Button> */}
                     </div>
                   </div>
                 </div>
@@ -823,17 +1054,59 @@ export function HourXHourTracker({
                 Standard Setup Times
               </div>
               <div className="mb-2 grid grid-cols-4 gap-2 pb-2">
-                <div className="text-center font-medium">M1</div>
-                <div className="text-center font-medium">M2</div>
-                <div className="text-center font-medium">M3</div>
-                <div className="text-center font-medium">M4</div>
+                {cellMachines.length === 0 ? (
+                  <div className="text-muted-foreground col-span-4 text-center text-sm">
+                    No machines available
+                  </div>
+                ) : (
+                  cellMachines.slice(0, 4).map((machine, index) => (
+                    <div key={machine.id} className="text-center font-medium">
+                      {machine.name.split(" ")[0]}
+                    </div>
+                  ))
+                )}
+
+                {/* Add placeholder cells if we have fewer than 4 machines */}
+                {cellMachines.length > 0 && cellMachines.length < 4
+                  ? Array.from({ length: 4 - cellMachines.length }).map(
+                      (_, i) => (
+                        <div
+                          key={`empty-${i}`}
+                          className="text-muted-foreground text-center text-xs"
+                        >
+                          -
+                        </div>
+                      )
+                    )
+                  : null}
               </div>
 
               <div className="mb-4 grid grid-cols-4 gap-2">
-                <div className="text-center">10</div>
-                <div className="text-center">10</div>
-                <div className="text-center">10</div>
-                <div className="text-center">10</div>
+                {cellMachines.length === 0 ? (
+                  <div className="text-muted-foreground col-span-4 text-center text-sm">
+                    -
+                  </div>
+                ) : (
+                  cellMachines.slice(0, 4).map((machine, index) => (
+                    <div key={machine.id} className="text-center">
+                      10
+                    </div>
+                  ))
+                )}
+
+                {/* Add placeholder cells if we have fewer than 4 machines */}
+                {cellMachines.length > 0 && cellMachines.length < 4
+                  ? Array.from({ length: 4 - cellMachines.length }).map(
+                      (_, i) => (
+                        <div
+                          key={`empty-${i}`}
+                          className="text-muted-foreground text-center"
+                        >
+                          -
+                        </div>
+                      )
+                    )
+                  : null}
               </div>
 
               {/* Part-Specific Setup Times */}
@@ -841,44 +1114,115 @@ export function HourXHourTracker({
                 Part-Specific Setup Times
               </div>
               <div className="mb-2 grid grid-cols-4 gap-2 pb-2">
-                <div className="text-center font-medium">M1</div>
-                <div className="text-center font-medium">M2</div>
-                <div className="text-center font-medium">M3</div>
-                <div className="text-center font-medium">M4</div>
+                {cellMachines.length === 0 ? (
+                  <div className="text-muted-foreground col-span-4 text-center text-sm">
+                    No machines available
+                  </div>
+                ) : (
+                  cellMachines.slice(0, 4).map((machine, index) => (
+                    <div key={machine.id} className="text-center font-medium">
+                      {machine.name.split(" ")[0]}
+                    </div>
+                  ))
+                )}
+
+                {/* Add placeholder cells if we have fewer than 4 machines */}
+                {cellMachines.length > 0 && cellMachines.length < 4
+                  ? Array.from({ length: 4 - cellMachines.length }).map(
+                      (_, i) => (
+                        <div
+                          key={`empty-${i}`}
+                          className="text-muted-foreground text-center text-xs"
+                        >
+                          -
+                        </div>
+                      )
+                    )
+                  : null}
               </div>
 
               <div className="space-y-2">
-                <div className="mb-1 flex items-center">
-                  <span className="mr-2 text-xs font-medium">Part A:</span>
-                  <div className="grid flex-1 grid-cols-4 gap-2">
-                    <div className="text-center">10</div>
-                    <div className="bg-yellow-100 text-center dark:bg-yellow-900/40">
-                      5
-                    </div>
-                    <div className="bg-green-100 text-center dark:bg-green-900/40">
-                      2
-                    </div>
-                    <div className="bg-amber-100 text-center dark:bg-amber-900/40">
-                      4
-                    </div>
+                {cellMachines.length === 0 ? (
+                  <div className="text-muted-foreground py-2 text-center text-sm">
+                    Select a cell with machines to view setup times
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="mb-1 flex items-center">
+                      <span className="mr-2 text-xs font-medium">Part A:</span>
+                      <div className="grid flex-1 grid-cols-4 gap-2">
+                        {cellMachines.slice(0, 4).map((machine, index) => {
+                          const times = [10, 5, 2, 4]
+                          const colors = [
+                            "",
+                            "bg-yellow-100 dark:bg-yellow-900/40",
+                            "bg-green-100 dark:bg-green-900/40",
+                            "bg-amber-100 dark:bg-amber-900/40"
+                          ]
+                          return (
+                            <div
+                              key={machine.id}
+                              className={`text-center ${colors[index] || ""}`}
+                            >
+                              {times[index]}
+                            </div>
+                          )
+                        })}
 
-                <div className="flex items-center">
-                  <span className="mr-2 text-xs font-medium">Part B:</span>
-                  <div className="grid flex-1 grid-cols-4 gap-2">
-                    <div className="text-center">10</div>
-                    <div className="bg-yellow-100 text-center dark:bg-yellow-900/40">
-                      5
+                        {/* Add placeholder cells if we have fewer than 4 machines */}
+                        {cellMachines.length < 4
+                          ? Array.from({ length: 4 - cellMachines.length }).map(
+                              (_, i) => (
+                                <div
+                                  key={`empty-${i}`}
+                                  className="text-muted-foreground text-center"
+                                >
+                                  -
+                                </div>
+                              )
+                            )
+                          : null}
+                      </div>
                     </div>
-                    <div className="bg-yellow-100 text-center dark:bg-yellow-900/40">
-                      5
+
+                    <div className="flex items-center">
+                      <span className="mr-2 text-xs font-medium">Part B:</span>
+                      <div className="grid flex-1 grid-cols-4 gap-2">
+                        {cellMachines.slice(0, 4).map((machine, index) => {
+                          const times = [10, 5, 5, 2]
+                          const colors = [
+                            "",
+                            "bg-yellow-100 dark:bg-yellow-900/40",
+                            "bg-yellow-100 dark:bg-yellow-900/40",
+                            "bg-green-100 dark:bg-green-900/40"
+                          ]
+                          return (
+                            <div
+                              key={machine.id}
+                              className={`text-center ${colors[index] || ""}`}
+                            >
+                              {times[index]}
+                            </div>
+                          )
+                        })}
+
+                        {/* Add placeholder cells if we have fewer than 4 machines */}
+                        {cellMachines.length < 4
+                          ? Array.from({ length: 4 - cellMachines.length }).map(
+                              (_, i) => (
+                                <div
+                                  key={`empty-${i}`}
+                                  className="text-muted-foreground text-center"
+                                >
+                                  -
+                                </div>
+                              )
+                            )
+                          : null}
+                      </div>
                     </div>
-                    <div className="bg-green-100 text-center dark:bg-green-900/40">
-                      2
-                    </div>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
 
               {/* Legend */}

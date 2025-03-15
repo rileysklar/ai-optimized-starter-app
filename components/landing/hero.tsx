@@ -18,6 +18,7 @@ import {
   LineChart
 } from "lucide-react"
 import Link from "next/link"
+import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs"
 import { AnimatedGradientText } from "@/components/magicui/animated-gradient-text"
 import { useEffect, useState, useRef } from "react"
 
@@ -219,31 +220,72 @@ export const HeroSection = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
             className="z-10 flex flex-col space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0"
           >
-            <Button
-              asChild
-              size="lg"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 group font-medium"
-            >
-              <Link href="/manufacturing" className="flex items-center">
-                Start Tracking{" "}
-                <ArrowRight className="ml-2 size-4 transition-transform duration-300 ease-out group-hover:translate-x-0.5" />
-              </Link>
-            </Button>
-
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="border-border bg-card/50 hover:bg-card hover:text-primary group backdrop-blur-sm"
-            >
-              <Link
-                href="/manufacturing/analytics"
-                className="flex items-center"
+            {/* Conditional rendering based on authentication state */}
+            <SignedIn>
+              {/* Show direct link to manufacturing for signed-in users */}
+              <Button
+                asChild
+                size="lg"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 group font-medium"
               >
-                View Analytics{" "}
-                <LineChart className="ml-2 size-4 transition-transform duration-300 ease-out group-hover:translate-x-0.5" />
-              </Link>
-            </Button>
+                <Link href="/manufacturing" className="flex items-center">
+                  Start Tracking{" "}
+                  <ArrowRight className="ml-2 size-4 transition-transform duration-300 ease-out group-hover:translate-x-0.5" />
+                </Link>
+              </Button>
+            </SignedIn>
+
+            <SignedOut>
+              {/* Redirect to sign-in with redirect_url for signed-out users */}
+              <Button
+                asChild
+                size="lg"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 group font-medium"
+              >
+                <Link
+                  href="/login?redirect_url=/manufacturing"
+                  className="flex items-center"
+                >
+                  Start Tracking{" "}
+                  <ArrowRight className="ml-2 size-4 transition-transform duration-300 ease-out group-hover:translate-x-0.5" />
+                </Link>
+              </Button>
+            </SignedOut>
+
+            {/* View Analytics button - conditionally rendered */}
+            <SignedIn>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="border-border bg-card/50 hover:bg-card hover:text-primary group backdrop-blur-sm"
+              >
+                <Link
+                  href="/manufacturing/analytics"
+                  className="flex items-center"
+                >
+                  View Analytics{" "}
+                  <LineChart className="ml-2 size-4 transition-transform duration-300 ease-out group-hover:translate-x-0.5" />
+                </Link>
+              </Button>
+            </SignedIn>
+
+            <SignedOut>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="border-border bg-card/50 hover:bg-card hover:text-primary group backdrop-blur-sm"
+              >
+                <Link
+                  href="/login?redirect_url=/manufacturing/analytics"
+                  className="flex items-center"
+                >
+                  View Analytics{" "}
+                  <LineChart className="ml-2 size-4 transition-transform duration-300 ease-out group-hover:translate-x-0.5" />
+                </Link>
+              </Button>
+            </SignedOut>
           </motion.div>
         </>
       )}

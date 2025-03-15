@@ -65,6 +65,7 @@ export const productionLogsTable = pgTable("production_logs", {
   partsProduced: integer("parts_produced").default(0).notNull(),
   actualCycleTime: integer("actual_cycle_time"), // in seconds, calculated on completion
   efficiency: decimal("efficiency", { precision: 5, scale: 2 }), // stored as percentage
+  targetCount: text("target_count"), // target number of parts to produce
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")

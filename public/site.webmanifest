@@ -1,0 +1,21 @@
+{
+  "name": "CellFlow",
+  "short_name": "CellFlow",
+  "description": "Manufacturing Efficiency Tracking System",
+  "icons": [
+    {
+      "src": "/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#3ecf8e",
+  "background_color": "#121212",
+  "display": "standalone",
+  "start_url": "/"
+} 

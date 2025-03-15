@@ -19,6 +19,24 @@ export const metadata: Metadata = {
   title: "CellFlow | Optimize Manufacturing",
   description:
     "CellFlow is a manufacturing optimization platform that helps you streamline your operations, reduce costs, and increase efficiency.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" }
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
+    ],
+    other: [
+      {
+        rel: "mask-icon",
+        url: "/safari-pinned-tab.svg",
+        color: "#3ecf8e"
+      }
+    ]
+  },
+  manifest: "/site.webmanifest",
   openGraph: {
     type: "website",
     title: "CellFlow | Optimize Manufacturing",

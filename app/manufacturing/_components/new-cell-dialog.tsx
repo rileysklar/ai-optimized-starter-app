@@ -252,7 +252,7 @@ export function NewCellDialog({
                             onCheckedChange={_ =>
                               toggleMachineSelection(machine.id)
                             }
-                            disabled={isAssignedToOther}
+                            disabled={!!isAssignedToOther}
                           />
                           <label
                             htmlFor={`machine-${machine.id}`}

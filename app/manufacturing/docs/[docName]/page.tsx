@@ -13,12 +13,13 @@ export const metadata = {
 }
 
 interface DocsPageProps {
-  params: {
+  params: Promise<{
     docName: string
-  }
+  }>
 }
 
-export default async function DocsPage({ params }: DocsPageProps) {
+export default async function DocsPage(props: DocsPageProps) {
+  const params = await props.params
   const { userId } = await auth()
 
   if (!userId) {

@@ -1,5 +1,3 @@
-"use server"
-
 import { getEfficiencyMetricsAction } from "@/actions/db/efficiency-metrics-actions"
 import { getBottleneckAnalysisAction } from "@/actions/db/bottleneck-analysis-actions"
 import { getCellsAction } from "@/actions/db/cells-actions"

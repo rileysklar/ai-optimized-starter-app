@@ -48,7 +48,8 @@ interface AnalyticsSearchParams {
 }
 
 // Use any type for now to get the build passing
-export default async function AnalyticsPage({ searchParams }: any) {
+export default async function AnalyticsPage(props: any) {
+  const searchParams = await props.searchParams
   const { userId } = await auth()
 
   if (!userId) {

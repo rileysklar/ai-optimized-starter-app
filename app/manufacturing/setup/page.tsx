@@ -1,5 +1,3 @@
-"use server"
-
 import { getSetupTimesAction } from "@/actions/db/setup-times-actions"
 import { getCellsAction } from "@/actions/db/cells-actions"
 import { auth } from "@clerk/nextjs/server"
@@ -14,6 +12,8 @@ export const metadata = {
 }
 
 export default async function SetupTimesPage() {
+  "use server"
+
   const { userId } = await auth()
 
   if (!userId) {
@@ -39,6 +39,8 @@ export default async function SetupTimesPage() {
 }
 
 async function SetupTimesContent({ userId }: { userId: string }) {
+  "use server"
+
   // Fetch cells and setup times
   const { data: cells } = await getCellsAction()
   const { data: setupTimes } = await getSetupTimesAction()

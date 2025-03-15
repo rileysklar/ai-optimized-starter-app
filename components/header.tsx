@@ -8,10 +8,12 @@ import {
   SignUpButton,
   UserButton
 } from "@clerk/nextjs"
+import { dark } from "@clerk/themes"
 import { Menu, Rocket, X, Factory } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { ThemeSwitcher } from "./utilities/theme-switcher"
+import { useTheme } from "next-themes"
 
 interface NavLink {
   href: string
@@ -23,6 +25,8 @@ const navLinks: NavLink[] = []
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const { resolvedTheme } = useTheme()
+  const isDarkMode = resolvedTheme === "dark"
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen)
@@ -86,14 +90,22 @@ export default function Header() {
             </SignInButton>
 
             <SignUpButton>
-              <Button className="from-primary bg-gradient-to-r via-purple-400 to-blue-400">
+              <Button className="bg-primary hover:bg-primary/80">
                 Sign Up
               </Button>
             </SignUpButton>
           </SignedOut>
 
           <SignedIn>
-            <UserButton />
+            <UserButton
+              afterSignOutUrl="/"
+              appearance={{
+                baseTheme: isDarkMode ? dark : undefined,
+                elements: {
+                  userButtonTrigger: "hover:bg-transparent focus:bg-transparent"
+                }
+              }}
+            />
           </SignedIn>
 
           <div className="md:hidden">

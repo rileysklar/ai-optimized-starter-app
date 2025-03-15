@@ -346,17 +346,8 @@ async function AnalyticsContent({
             </Card>
 
             <Card>
-              <CardHeader>
-                <CardTitle>Data Maintenance</CardTitle>
-                <CardDescription>
-                  Calculate and fix metrics from production data
-                </CardDescription>
-              </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <h3 className="mb-2 text-sm font-medium">
-                    Calculate Missing Metrics
-                  </h3>
+                <div className="pt-8">
                   <BatchMetricsCalculator cellId={defaultCellId} />
                 </div>
                 <div className="border-t pt-4">

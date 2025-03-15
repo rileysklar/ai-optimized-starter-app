@@ -104,7 +104,7 @@ export function ManufacturingNavbar() {
   ]
 
   return (
-    <div className="mb-6 flex items-center justify-between border-b p-4">
+    <div className="mb-6 flex hidden items-center justify-between border-b p-4">
       <div className="flex items-center gap-4">
         {/* Dashboard Dropdown */}
         <DropdownMenu>

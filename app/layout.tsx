@@ -16,8 +16,31 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "CellFlow AI-Optimized Starter App",
-  description: "A full-stack web app template."
+  title: "CellFlow | Optimize Manufacturing",
+  description:
+    "CellFlow is a manufacturing optimization platform that helps you streamline your operations, reduce costs, and increase efficiency.",
+  openGraph: {
+    type: "website",
+    title: "CellFlow | Optimize Manufacturing",
+    description:
+      "Track progress, reward success. Optimize manufacturing efficiency in real-time.",
+    images: [
+      {
+        url: "/hero.png",
+        width: 1200,
+        height: 630,
+        alt: "CellFlow Manufacturing Efficiency Platform"
+      }
+    ],
+    siteName: "CellFlow"
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CellFlow | Optimize Manufacturing",
+    description:
+      "Track progress, reward success. Optimize manufacturing efficiency in real-time.",
+    images: ["/hero.png"]
+  }
 }
 
 export default async function RootLayout({

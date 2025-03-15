@@ -1,7 +1,7 @@
 /*
  * Hero section component with dynamic theme support.
  * Uses CSS variables defined in globals.css to ensure compatibility with both light and dark modes.
- * The mouse tracking effect and grid background use theme-aware gradient colors.
+ * The gradient background uses theme-aware colors with slow, random movement.
  */
 
 "use client"
@@ -24,93 +24,118 @@ import { useEffect, useState, useRef } from "react"
 
 export const HeroSection = () => {
   const [mounted, setMounted] = useState(false)
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
-  const [trailingPositions, setTrailingPositions] = useState<
+  const [gradientPosition, setGradientPosition] = useState({ x: 50, y: 50 })
+  const [gradientPositions, setGradientPositions] = useState<
     Array<{ x: number; y: number }>
-  >([])
+  >([
+    { x: 30, y: 70 },
+    { x: 70, y: 30 }
+  ])
   const heroRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
+  const animationRef = useRef<number | null>(null)
+  const targetRef = useRef({ x: 50, y: 50 })
 
   // useEffect only runs on the client, so now we can safely show the UI
   useEffect(() => {
     setMounted(true)
   }, [])
 
-  // Mouse tracking effect
+  // Improved random gradient movement effect
   useEffect(() => {
     if (!mounted) return
 
-    let animationFrameId: number
-    let targetX = 0
-    let targetY = 0
+    // Function to generate a random position within bounds with more natural constraints
+    const generateRandomPosition = () => {
+      // Get current position to ensure smooth transition
+      const current = targetRef.current
 
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!heroRef.current) return
-
-      const rect = heroRef.current.getBoundingClientRect()
-      targetX = ((e.clientX - rect.left) / rect.width) * 100
-      targetY = ((e.clientY - rect.top) / rect.height) * 100
+      // Generate new position within a reasonable range from current
+      // This creates more natural movement rather than jumping across the screen
+      return {
+        x: Math.max(10, Math.min(90, current.x + (Math.random() - 0.5) * 50)),
+        y: Math.max(10, Math.min(90, current.y + (Math.random() - 0.5) * 50))
+      }
     }
 
-    const animateMousePosition = () => {
-      // Interpolate current position towards target (lagging effect)
-      const currentX = mousePosition.x + (targetX - mousePosition.x) * 0.02
-      const currentY = mousePosition.y + (targetY - mousePosition.y) * 0.02
-
-      // Only update if there's a significant change
-      if (
-        Math.abs(currentX - mousePosition.x) > 0.01 ||
-        Math.abs(currentY - mousePosition.y) > 0.01
-      ) {
-        // Update trailing positions
-        setTrailingPositions(prev => {
-          const newPositions = [...prev]
-          // Add current position to the beginning
-          newPositions.unshift({ x: currentX, y: currentY })
-          // Keep only the last 3 positions
-          return newPositions.slice(0, 3)
-        })
-
-        setMousePosition({ x: currentX, y: currentY })
+    // Function to update gradient position
+    const animateGradients = () => {
+      // Generate new targets when needed
+      if (!targetRef.current) {
+        targetRef.current = { x: 50, y: 50 }
       }
 
-      animationFrameId = requestAnimationFrame(animateMousePosition)
+      // Slowly move toward the target position
+      setGradientPosition(prev => {
+        // Create smoother animation with variable speed (slower as it approaches target)
+        const distance = Math.sqrt(
+          Math.pow(targetRef.current.x - prev.x, 2) +
+            Math.pow(targetRef.current.y - prev.y, 2)
+        )
+
+        // Adjust speed based on distance - slower when close, faster when far
+        // Increased speed values for quicker movement
+        const speed = Math.max(0.003, Math.min(0.015, distance * 0.001))
+
+        // Calculate next position with dynamic speed
+        const nextX = prev.x + (targetRef.current.x - prev.x) * speed
+        const nextY = prev.y + (targetRef.current.y - prev.y) * speed
+
+        // Check if we're close enough to the target to generate a new one
+        // Increased threshold for more frequent position changes
+        if (distance < 2) {
+          // Generate a new target position
+          targetRef.current = generateRandomPosition()
+
+          // Also update trailing positions for a fluid effect
+          setGradientPositions(current => {
+            // Create new positions array with current as first, and shifting others
+            return [
+              { x: prev.x, y: prev.y },
+              { x: current[0].x, y: current[0].y }
+            ]
+          })
+        }
+
+        return { x: nextX, y: nextY }
+      })
+
+      // Continue the animation loop
+      animationRef.current = requestAnimationFrame(animateGradients)
     }
 
-    // Start animation
-    animationFrameId = requestAnimationFrame(animateMousePosition)
-
-    // Add event listener
-    window.addEventListener("mousemove", handleMouseMove)
+    // Start the animation
+    animateGradients()
 
     // Cleanup
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove)
-      cancelAnimationFrame(animationFrameId)
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
     }
-  }, [mounted, mousePosition])
+  }, [mounted])
 
   return (
     <div
       ref={heroRef}
       className="relative mb-6 flex min-h-[60vh] flex-col items-center justify-start overflow-hidden px-4 pt-12 md:mb-8 md:pt-16"
     >
-      {/* Grid background effect */}
+      {/* Grid background effect with improved animation transition */}
       <div
         ref={gridRef}
         className="absolute inset-0 z-0"
         style={{
           backgroundImage: `
             radial-gradient(
-              circle at ${mousePosition.x}% ${mousePosition.y}%, 
+              circle at ${gradientPosition.x}% ${gradientPosition.y}%, 
               var(--highlight-gradient-from, rgba(62, 207, 142, 0.12)) 0%, 
               var(--highlight-gradient-to, rgba(62, 207, 142, 0.02)) 35%, 
               transparent 70%
             )
             ${
-              trailingPositions[0]
+              gradientPositions[0]
                 ? `, radial-gradient(
-              circle at ${trailingPositions[0].x}% ${trailingPositions[0].y}%, 
+              circle at ${gradientPositions[0].x}% ${gradientPositions[0].y}%, 
               var(--highlight-gradient-from, rgba(62, 207, 142, 0.08)) 0%, 
               var(--highlight-gradient-to, rgba(62, 207, 142, 0.01)) 30%, 
               transparent 60%
@@ -118,9 +143,9 @@ export const HeroSection = () => {
                 : ""
             }
             ${
-              trailingPositions[1]
+              gradientPositions[1]
                 ? `, radial-gradient(
-              circle at ${trailingPositions[1].x}% ${trailingPositions[1].y}%, 
+              circle at ${gradientPositions[1].x}% ${gradientPositions[1].y}%, 
               var(--highlight-gradient-from, rgba(62, 207, 142, 0.04)) 0%, 
               var(--highlight-gradient-to, rgba(62, 207, 142, 0.005)) 25%, 
               transparent 50%
@@ -129,9 +154,9 @@ export const HeroSection = () => {
             }
           `,
           backgroundSize: "100% 100%",
-          transition: "background 0.5s ease-out, mask-image 0.5s ease-out",
+          transition: "background 1.5s cubic-bezier(0.22, 1, 0.36, 1)",
           maskImage: `radial-gradient(
-            circle at ${mousePosition.x}% ${mousePosition.y}%, 
+            circle at 50% 50%, 
             rgba(0, 0, 0, 1) 0%, 
             rgba(0, 0, 0, 0.8) 45%, 
             rgba(0, 0, 0, 0.5) 65%, 
@@ -145,8 +170,8 @@ export const HeroSection = () => {
           className="absolute inset-0"
           style={{
             backgroundImage: `
-              linear-gradient(to right, var(--grid-line-color, rgba(62, 207, 142, 0.03)) 1px, transparent 1px),
-              linear-gradient(to bottom, var(--grid-line-color, rgba(62, 207, 142, 0.03)) 1px, transparent 1px)
+              linear-gradient(to right, var(--grid-line-color, rgba(98, 98, 98, 0.99)) 1px, transparent 1px),
+              linear-gradient(to bottom, var(--grid-line-color, rgba(57, 57, 57, 0.76)) 1px, transparent 1px)
             `,
             backgroundSize: "clamp(20px, 5vw, 40px) clamp(20px, 5vw, 40px)"
           }}

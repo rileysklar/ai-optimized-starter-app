@@ -9,9 +9,11 @@ Updated: Added manufacturing schema exports
 export * from "./profiles-schema"
 export * from "./contacts-schema"
 export * from "./manufacturing-schema"
+export * from "./production-schema"
 export * from "./metrics-schema"
 export * from "./parts-schema"
 export * from "./setup-times-schema"
+export * from "./shifts-schema"
 
 // Import and rename conflicting exports from production-schema
 import {

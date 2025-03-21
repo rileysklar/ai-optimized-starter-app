@@ -5,6 +5,7 @@ import { HourXHourTracker } from "@/app/manufacturing/_components/hour-x-hour-tr
 import { ProductionTrackerSkeleton } from "@/app/manufacturing/_components/production-tracker-skeleton"
 import { getCellsAction } from "@/actions/db/cells-actions"
 import { getPartsAction } from "@/actions/db/parts-actions"
+import { getActiveShiftByUserIdAction } from "@/actions/db/shifts-actions"
 import { ManufacturingNavbar } from "@/app/manufacturing/_components/manufacturing-navbar"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
@@ -40,6 +41,7 @@ async function ProductionTrackerContent({ userId }: { userId: string }) {
   // Fetch cells and parts from server actions
   const { data: cells } = await getCellsAction()
   const { data: parts } = await getPartsAction()
+  const { data: activeShift } = await getActiveShiftByUserIdAction(userId)
 
   // Provide mock cells if none exist in the database yet
   let availableCells = cells || []

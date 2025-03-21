@@ -21,7 +21,8 @@ import {
   downtimeLogsTable,
   efficiencyMetricsTable,
   bottleneckAnalysisTable,
-  partsTable
+  partsTable,
+  shiftsTable
 } from "@/db/schema"
 
 // Load environment variables
@@ -57,6 +58,7 @@ if (process.env.NODE_ENV === "production") {
  * - Production Tracking (Machines, Production Logs, Downtime Logs)
  * - Metrics and Analysis (Efficiency Metrics, Bottleneck Analysis)
  * - Parts (defined in parts-schema.ts)
+ * - Shifts (defined in shifts-schema.ts)
  */
 const schema = {
   profiles: profilesTable,
@@ -71,7 +73,8 @@ const schema = {
   downtimeLogs: downtimeLogsTable,
   efficiencyMetrics: efficiencyMetricsTable,
   bottleneckAnalysis: bottleneckAnalysisTable,
-  parts: partsTable
+  parts: partsTable,
+  shifts: shiftsTable
 }
 
 const db = drizzle(conn, { schema })

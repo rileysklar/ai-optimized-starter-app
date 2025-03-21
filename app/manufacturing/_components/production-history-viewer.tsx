@@ -185,8 +185,37 @@ export function ProductionHistoryViewer({
       )
 
       if (result.isSuccess) {
-        setProductionLogs(result.data)
-        if (result.data.length === 0 && activeTab === "production") {
+        // Validate and process data to ensure values are correct
+        const validatedLogs = result.data.map(log => ({
+          ...log,
+          // Ensure efficiency is calculated properly and not defaulting to 100
+          efficiency:
+            log.standardTime && log.actualTime
+              ? Math.round(
+                  log.standardTime && log.actualTime > 0
+                    ? (log.standardTime / Math.max(log.actualTime, 0.1)) * 100
+                    : 0
+                )
+              : log.efficiency || 0,
+          // Format date properly
+          date: log.date
+            ? new Date(log.date).toISOString()
+            : new Date().toISOString(),
+          // Ensure shift info is captured
+          shift: log.shift || "Unknown",
+          // Calculate or use existing time difference
+          difference:
+            log.difference !== undefined
+              ? log.difference
+              : log.actualTime && log.standardTime
+                ? log.actualTime - log.standardTime
+                : 0
+        }))
+
+        console.log("Processed production logs:", validatedLogs)
+        setProductionLogs(validatedLogs)
+
+        if (validatedLogs.length === 0 && activeTab === "production") {
           setError("No production logs found for the selected date range")
         }
       } else {
@@ -224,7 +253,32 @@ export function ProductionHistoryViewer({
               )
 
               if (mockResult.isSuccess) {
-                setProductionLogs(mockResult.data)
+                // Also validate mock data
+                const validatedMockLogs = mockResult.data.map(log => ({
+                  ...log,
+                  efficiency:
+                    log.standardTime && log.actualTime
+                      ? Math.round(
+                          log.standardTime && log.actualTime > 0
+                            ? (log.standardTime /
+                                Math.max(log.actualTime, 0.1)) *
+                                100
+                            : 0
+                        )
+                      : log.efficiency || 0,
+                  date: log.date
+                    ? new Date(log.date).toISOString()
+                    : new Date().toISOString(),
+                  shift: log.shift || "Unknown",
+                  difference:
+                    log.difference !== undefined
+                      ? log.difference
+                      : log.actualTime && log.standardTime
+                        ? log.actualTime - log.standardTime
+                        : 0
+                }))
+
+                setProductionLogs(validatedMockLogs)
                 setError(
                   "Using sample data for demonstration due to database error"
                 )
@@ -543,6 +597,31 @@ export function ProductionHistoryViewer({
 
   // Add a conversion function for the metrics
   function convertEfficiencyMetric(metric: any): EfficiencyMetric {
+    const efficiencyValue =
+      typeof metric.efficiency === "string"
+        ? parseFloat(metric.efficiency)
+        : metric.efficiency
+
+    // Verify that efficiency is calculated correctly
+    const calculatedEfficiency =
+      metric.totalRuntime > 0 && metric.totalDowntime >= 0
+        ? Math.round(
+            ((metric.totalRuntime - metric.totalDowntime) /
+              metric.totalRuntime) *
+              100
+          )
+        : efficiencyValue
+
+    // Use the calculated efficiency if it's valid, otherwise fallback to provided value
+    const finalEfficiency =
+      !isNaN(calculatedEfficiency) &&
+      calculatedEfficiency >= 0 &&
+      calculatedEfficiency <= 100
+        ? calculatedEfficiency
+        : efficiencyValue >= 0 && efficiencyValue <= 100
+          ? efficiencyValue
+          : 0
+
     return {
       id: metric.id,
       date: metric.date,
@@ -550,10 +629,8 @@ export function ProductionHistoryViewer({
       partsProduced: metric.partsProduced,
       totalRuntime: metric.totalRuntime,
       totalDowntime: metric.totalDowntime,
-      efficiency:
-        typeof metric.efficiency === "string"
-          ? parseFloat(metric.efficiency)
-          : metric.efficiency,
+      // Apply validated efficiency
+      efficiency: finalEfficiency,
       attainmentPercentage:
         metric.attainmentPercentage != null
           ? typeof metric.attainmentPercentage === "string"
@@ -877,6 +954,8 @@ export function ProductionHistoryViewer({
                           <TableRow>
                             <TableHead>Date</TableHead>
                             <TableHead>Shift</TableHead>
+                            <TableHead>Start Time</TableHead>
+                            <TableHead>End Time</TableHead>
                             <TableHead>Cell</TableHead>
                             <TableHead>Machine</TableHead>
                             <TableHead>Part #</TableHead>
@@ -903,7 +982,33 @@ export function ProductionHistoryViewer({
                               <TableCell>
                                 {format(new Date(log.date), "MM/dd/yyyy")}
                               </TableCell>
-                              <TableCell>{log.shift}</TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <span
+                                    className={
+                                      log.shift === "1st"
+                                        ? "text-blue-600 dark:text-blue-400"
+                                        : log.shift === "2nd"
+                                          ? "text-purple-600 dark:text-purple-400"
+                                          : log.shift === "3rd"
+                                            ? "text-orange-600 dark:text-orange-400"
+                                            : ""
+                                    }
+                                  >
+                                    {log.shift || "Unknown"}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {log.startTime
+                                  ? format(new Date(log.startTime), "h:mm a")
+                                  : "-"}
+                              </TableCell>
+                              <TableCell>
+                                {log.endTime
+                                  ? format(new Date(log.endTime), "h:mm a")
+                                  : "-"}
+                              </TableCell>
                               <TableCell>{log.cellName}</TableCell>
                               <TableCell>{log.machineName}</TableCell>
                               <TableCell>

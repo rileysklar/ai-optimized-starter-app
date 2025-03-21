@@ -1884,207 +1884,325 @@ export function HourXHourTracker({
         {/* Production Tracker - Full width */}
         <div className="bg-card overflow-hidden rounded-xl border shadow-sm lg:col-span-6">
           <div className="bg-muted/10 flex items-center justify-between border-b p-4">
-            <h3 className="font-medium">Production Tracker</h3>
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-xs">
-                {selectedCell ? `Tracking ${selectedCell}` : "No cell selected"}
-              </span>
-
-              <div className="flex">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-1"
-                      disabled={!selectedCell}
-                    >
-                      <span>{selectedCell ? selectedCell : "Select Cell"}</span>
-                      <ChevronDown className="ml-1 size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Available Cells</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {cells.length === 0 ? (
-                      <DropdownMenuItem disabled>
-                        No cells available
-                      </DropdownMenuItem>
-                    ) : (
-                      cells.map(cell => (
-                        <DropdownMenuItem
-                          key={cell.id}
-                          onClick={() => handleCellChange(cell.id)}
-                        >
-                          {cell.name}
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
+            <h3 className="font-medium">Production Tracking</h3>
           </div>
 
           {selectedCell ? (
-            <div
-              className={`grid grid-cols-1 gap-4 p-4 ${selectedCell ? "" : "opacity-50"}`}
-            >
-              {/* Production Tracking Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-muted/30">
-                      <th className="border px-2 py-1 text-left">Time</th>
-                      <th className="border px-2 py-1 text-center">
-                        Plan <span className="text-xs">(Units)</span>
-                      </th>
-                      <th className="border px-2 py-1 text-center">
-                        Actual <span className="text-xs">(Units)</span>
-                      </th>
-                      <th className="border px-2 py-1 text-center">
-                        Attainment <span className="text-xs">(%)</span>
-                      </th>
-                      <th className="border px-2 py-1">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {productionHours.map((hour, index) => {
-                      const isCurrentHour =
-                        index === getCurrentHourIndex(shiftStartTime)
-                      const isPastHour =
-                        index < getCurrentHourIndex(shiftStartTime)
-                      let rowClass =
-                        index % 2 === 0 ? "bg-background" : "bg-muted/10"
-
-                      // Add highlight for current hour
-                      if (isCurrentHour) {
-                        rowClass += " ring-primary/20 ring-1"
-                      }
-
-                      return (
-                        <tr
-                          key={`hour-${hour.label}`}
-                          className={rowClass}
-                          ref={isCurrentHour ? currentHourRef : null}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-10"></TableHead>
+                    <TableHead>Part Number</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="w-16">Qty</TableHead>
+                    <TableHead className="w-16">Std Time</TableHead>
+                    <TableHead className="w-16">Actual</TableHead>
+                    <TableHead className="w-44 text-center">Complete</TableHead>
+                    <TableHead className="w-16">+/-</TableHead>
+                    <TableHead className="w-28">Break</TableHead>
+                    <TableHead className="w-28">Bottleneck</TableHead>
+                    <TableHead>Reason For Difference</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {runningParts.map((run, index) => (
+                    <TableRow
+                      key={index}
+                      className={cn(
+                        run.endTime ? "bg-green-50 dark:bg-green-950/20" : "",
+                        "group transition-colors duration-100"
+                      )}
+                    >
+                      <TableCell>
+                        <div className="flex items-center justify-center">
+                          {run.endTime ? (
+                            <div className="rounded-full bg-green-100 p-1 text-green-800 dark:bg-green-900/60 dark:text-green-300">
+                              <CheckCircle2 className="size-4" />
+                            </div>
+                          ) : (
+                            <div className="rounded-full bg-blue-100 p-1 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
+                              <Clock className="size-4" />
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{run.partNumber}</TableCell>
+                      <TableCell>{run.partName}</TableCell>
+                      <TableCell>{run.quantity}</TableCell>
+                      <TableCell>{run.standardTime}</TableCell>
+                      <TableCell>{run.actualTime}</TableCell>
+                      <TableCell>
+                        {run.endTime ? (
+                          <div className="flex items-center justify-center space-x-2">
+                            <CheckCircle2 className="size-5 text-green-500" />
+                            <span className="text-sm font-medium text-green-600">
+                              Completed at{" "}
+                              {format(new Date(run.endTime), "h:mm a")}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex justify-center">
+                            <Button
+                              size="sm"
+                              onClick={() => handleCompleteStandardWork(run.id)}
+                              className="px-4"
+                            >
+                              Complete
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell
+                        className={cn(
+                          "font-medium",
+                          run.timeDifference != null && run.timeDifference > 0
+                            ? "text-destructive"
+                            : "",
+                          run.timeDifference != null && run.timeDifference < 0
+                            ? "text-green-600 dark:text-green-500"
+                            : ""
+                        )}
+                      >
+                        {run.timeDifference != null && run.timeDifference !== 0
+                          ? run.timeDifference
+                          : "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={run.breakDuration.toString()}
+                          onValueChange={value => {
+                            const duration = parseInt(value)
+                            handleBreakDurationChange(run.id, duration)
+                          }}
                         >
-                          <td className="border px-2 py-1 font-medium">
-                            {hour.label}
-                            {isCurrentHour && (
-                              <span className="text-primary ml-1 text-xs font-normal">
-                                (Current)
-                              </span>
-                            )}
-                          </td>
-                          <td className="border px-2 py-1 text-center">
-                            {targetProduction === 0
-                              ? "-"
-                              : Math.round(targetProduction)}
-                          </td>
-                          <td className="border px-2 py-1 text-center">
-                            {hour.actualProduction === 0 &&
-                            (!isCurrentHour || !shiftStartTime)
-                              ? "-"
-                              : hour.actualProduction}
-                          </td>
-                          <td className="border px-2 py-1 text-center">
-                            {targetProduction === 0 ||
-                            (hour.actualProduction === 0 &&
-                              (!isCurrentHour || !shiftStartTime)) ? (
-                              "-"
-                            ) : (
-                              <div className="flex items-center justify-center">
-                                <span
-                                  className={getAttainmentColor(
-                                    hour.attainmentPercentage
-                                  )}
+                          <SelectTrigger className="w-24">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">None</SelectItem>
+                            {BREAK_DURATIONS.map(duration => (
+                              <SelectItem
+                                key={duration.value}
+                                value={duration.value.toString()}
+                              >
+                                {duration.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        {run.bottleneckMachine ? (
+                          <Badge
+                            variant="outline"
+                            className="border-amber-500 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+                          >
+                            Machine {run.bottleneckMachine}
+                          </Badge>
+                        ) : (
+                          "-"
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Select
+                            value={run.reasonCategory}
+                            onValueChange={value =>
+                              handleReasonCategoryChange(run.id, value)
+                            }
+                          >
+                            <SelectTrigger className="w-40">
+                              <SelectValue placeholder="Select reason..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {COMMON_REASONS.map(reason => (
+                                <SelectItem
+                                  key={reason.value}
+                                  value={reason.value}
                                 >
-                                  {hour.attainmentPercentage}%
-                                </span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="border px-2 py-1">
-                            {isCurrentHour ? (
-                              <Badge className="border-green-500 bg-green-50 text-green-700 dark:border-green-700 dark:bg-green-950/30 dark:text-green-400">
-                                In Progress
-                              </Badge>
-                            ) : isPastHour ? (
-                              <Badge className="dark:border-slate-700 dark:bg-slate-950/30 dark:text-slate-400">
-                                Complete
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline">Pending</Badge>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                                  {reason.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
 
-              <div className="mt-3 flex items-center justify-between">
-                <Button
-                  disabled={!selectedCell || !shiftStartTime}
-                  onClick={handleAddProduction}
-                  className="ml-auto"
-                >
-                  <Plus className="mr-1 size-4" />
-                  Add Production
-                </Button>
-              </div>
+                          {run.reasonCategory === "other" && (
+                            <Input
+                              value={run.reasonForTimeDifference}
+                              onChange={e =>
+                                handleReasonChange(run.id, e.target.value)
+                              }
+                              placeholder="Specify reason..."
+                              className="h-8 flex-1"
+                            />
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell colSpan={11} className="p-2">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <label
+                            htmlFor="part-select"
+                            className="text-sm font-medium"
+                          >
+                            Select Part:
+                          </label>
+                          <Select
+                            key={selectKey}
+                            onValueChange={value => {
+                              console.log("Part selected:", value)
+                              handleAddPart(
+                                parts.find(p => p.id === value) as SelectPart,
+                                0
+                              )
+                              // Increment the key to force a re-render of the Select component
+                              setSelectKey(prev => prev + 1)
+                            }}
+                          >
+                            <SelectTrigger
+                              id="part-select"
+                              className={`w-64 ${!selectedCell || cellMachines.length === 0 ? "opacity-50" : ""}`}
+                              disabled={
+                                !selectedCell || cellMachines.length === 0
+                              }
+                            >
+                              <SelectValue
+                                placeholder={
+                                  !selectedCell
+                                    ? "Select a cell first"
+                                    : cellMachines.length === 0
+                                      ? "No machines available for this cell"
+                                      : "Choose a part to add"
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {parts.length === 0 ? (
+                                <div className="text-muted-foreground p-2 text-center text-sm">
+                                  No parts available. Add parts in the Parts
+                                  Management section.
+                                </div>
+                              ) : (
+                                parts.map(part => (
+                                  <SelectItem key={part.id} value={part.id}>
+                                    {part.partNumber} - {part.description}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
             </div>
           ) : (
             <div className="p-4">
               {/* Skeleton Production Tracking Table */}
               <div className="overflow-x-auto">
-                <div className="w-full border-collapse">
-                  <div className="bg-muted/30 mb-2 flex border">
-                    <div className="w-1/5 border px-2 py-1 text-left">
-                      <div className="bg-muted/50 h-4 w-16 animate-pulse rounded"></div>
-                    </div>
-                    <div className="w-1/5 border px-2 py-1 text-center">
-                      <div className="bg-muted/50 mx-auto h-4 w-16 animate-pulse rounded"></div>
-                    </div>
-                    <div className="w-1/5 border px-2 py-1 text-center">
-                      <div className="bg-muted/50 mx-auto h-4 w-16 animate-pulse rounded"></div>
-                    </div>
-                    <div className="w-1/5 border px-2 py-1 text-center">
-                      <div className="bg-muted/50 mx-auto h-4 w-20 animate-pulse rounded"></div>
-                    </div>
-                    <div className="w-1/5 border px-2 py-1">
-                      <div className="bg-muted/50 h-4 w-16 animate-pulse rounded"></div>
-                    </div>
-                  </div>
-
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((_, index) => (
-                    <div
-                      key={index}
-                      className={`flex border ${index % 2 === 0 ? "bg-background" : "bg-muted/10"} ${index === 2 ? "ring-primary/20 ring-1" : ""}`}
-                    >
-                      <div className="w-1/5 border px-2 py-1">
-                        <div className="bg-muted/50 h-4 w-20 animate-pulse rounded"></div>
-                      </div>
-                      <div className="w-1/5 border px-2 py-1 text-center">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="w-10">
+                        <div className="bg-muted/50 mx-auto size-4 animate-pulse rounded-full"></div>
+                      </TableHead>
+                      <TableHead>
+                        <div className="bg-muted/50 h-4 w-24 animate-pulse rounded"></div>
+                      </TableHead>
+                      <TableHead>
+                        <div className="bg-muted/50 h-4 w-32 animate-pulse rounded"></div>
+                      </TableHead>
+                      <TableHead className="w-16">
                         <div className="bg-muted/50 mx-auto h-4 w-8 animate-pulse rounded"></div>
-                      </div>
-                      <div className="w-1/5 border px-2 py-1 text-center">
-                        <div className="bg-muted/50 mx-auto h-4 w-8 animate-pulse rounded"></div>
-                      </div>
-                      <div className="w-1/5 border px-2 py-1 text-center">
+                      </TableHead>
+                      <TableHead className="w-16">
                         <div className="bg-muted/50 mx-auto h-4 w-12 animate-pulse rounded"></div>
-                      </div>
-                      <div className="w-1/5 border px-2 py-1">
-                        <div className="bg-muted/50 h-5 w-20 animate-pulse rounded-full"></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-5 flex justify-end">
-                <div className="bg-muted/50 h-9 w-36 animate-pulse rounded"></div>
+                      </TableHead>
+                      <TableHead className="w-16">
+                        <div className="bg-muted/50 mx-auto h-4 w-12 animate-pulse rounded"></div>
+                      </TableHead>
+                      <TableHead className="w-44 text-center">
+                        <div className="bg-muted/50 mx-auto h-4 w-24 animate-pulse rounded"></div>
+                      </TableHead>
+                      <TableHead className="w-16">
+                        <div className="bg-muted/50 mx-auto h-4 w-8 animate-pulse rounded"></div>
+                      </TableHead>
+                      <TableHead className="w-28">
+                        <div className="bg-muted/50 mx-auto h-4 w-16 animate-pulse rounded"></div>
+                      </TableHead>
+                      <TableHead className="w-28">
+                        <div className="bg-muted/50 mx-auto h-4 w-20 animate-pulse rounded"></div>
+                      </TableHead>
+                      <TableHead>
+                        <div className="bg-muted/50 h-4 w-36 animate-pulse rounded"></div>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[1, 2, 3].map((_, index) => (
+                      <TableRow
+                        key={index}
+                        className="group transition-colors duration-100"
+                      >
+                        <TableCell>
+                          <div className="flex items-center justify-center">
+                            <div className="bg-muted/50 mx-auto size-8 animate-pulse rounded-full"></div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="bg-muted/50 h-4 w-20 animate-pulse rounded"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="bg-muted/50 h-4 w-24 animate-pulse rounded"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="bg-muted/50 h-4 w-6 animate-pulse rounded"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="bg-muted/50 h-4 w-8 animate-pulse rounded"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="bg-muted/50 h-4 w-8 animate-pulse rounded"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center">
+                            <div className="bg-muted/50 h-8 w-24 animate-pulse rounded"></div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="bg-muted/50 h-4 w-6 animate-pulse rounded"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="bg-muted/50 h-8 w-20 animate-pulse rounded"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="bg-muted/50 h-6 w-24 animate-pulse rounded-full"></div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <div className="bg-muted/50 h-8 w-36 animate-pulse rounded"></div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableCell colSpan={11} className="p-2">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <div className="bg-muted/50 h-4 w-20 animate-pulse rounded"></div>
+                            <div className="bg-muted/50 h-10 w-64 animate-pulse rounded"></div>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </div>
             </div>
           )}

@@ -5,19 +5,23 @@ import { ActionState } from "@/types"
 import { z } from "zod"
 import { eq, and, sql, desc, between, isNull, not, gte, lte, asc } from "drizzle-orm"
 import { 
-  productionMachinesTable as machinesTable,
+  productionMachinesTable,
   productionLogsTable,
   downtimeLogsTable,
   cellsTable,
-  efficiencyMetricsTable
-} from "@/db/schema"
+  efficiencyMetricsTable,
+  SelectProductionMachine
+} from "@/db/schema/index"
 import { 
   SelectEfficiencyMetric,
   InsertEfficiencyMetric
 } from "@/db/schema/metrics-schema"
-import { SelectMachine } from "@/db/schema/production-schema"
-import { SelectProductionLog, SelectDowntimeLog } from "@/db/schema/production-schema"
-import { format, parseISO, startOfDay, endOfDay, eachDayOfInterval, addDays, isValid, parse } from "date-fns"
+import {
+  SelectProductionLog,
+  SelectDowntimeLog
+} from "@/db/schema/production-schema"
+import { SelectCell } from "@/db/schema/manufacturing-schema"
+import { format, parse, parseISO, isValid, startOfDay, endOfDay, eachDayOfInterval, addDays } from "date-fns"
 
 // Validation schema for calculating efficiency metrics
 const calculateEfficiencySchema = z.object({
@@ -129,29 +133,38 @@ export async function getEfficiencyMetricsAction(
 
 // Calculate efficiency metrics for a cell on a specific date
 export async function calculateMachineEfficiencyAction(
-  input: CalculateEfficiencyInput | { cellId: string; date: string }
-): Promise<ActionState<SelectEfficiencyMetric>> {
+  input: { machineId?: string; cellId?: string; date?: string; includeDowntime?: boolean } | CalculateEfficiencyInput
+): Promise<ActionState<{ metrics: SelectEfficiencyMetric; machines: any[] } | undefined>> {
   try {
     // Handle both input formats
     let cellId: string;
     let date: string;
 
-    if ('cellId' in input && 'date' in input) {
+    if ('cellId' in input && input.cellId && 'date' in input && input.date) {
       // New simplified format
       cellId = input.cellId;
       date = input.date;
     } else {
-      // Use the validation schema to validate the input
-      const validatedData = calculateEfficiencySchema.parse(input);
-      cellId = validatedData.cellId;
-      date = validatedData.date;
+      try {
+        // Use the validation schema to validate the input
+        const validatedData = calculateEfficiencySchema.parse(input);
+        cellId = validatedData.cellId;
+        date = validatedData.date;
+      } catch (error) {
+        return {
+          isSuccess: false,
+          message: "Invalid input: cellId and date are required",
+          data: undefined
+        };
+      }
     }
 
     // Validate inputs
     if (!cellId || !date) {
       return {
         isSuccess: false,
-        message: "Missing required parameters: cellId and date"
+        message: "Missing required parameters: cellId and date",
+        data: undefined
       }
     }
 
@@ -170,28 +183,19 @@ export async function calculateMachineEfficiencyAction(
       )
     })
 
-    // No existing metrics, calculate from production logs
-    
     // First, get the cell details
     const cell = await db.query.cells.findFirst({
       where: eq(cellsTable.id, cellId),
       with: {
-        valueStream: {
-          with: {
-            site: {
-              with: {
-                company: true
-              }
-            }
-          }
-        }
+        valueStream: true
       }
     })
 
     if (!cell) {
       return {
         isSuccess: false,
-        message: "Cell not found"
+        message: `Cell with ID ${cellId} not found`,
+        data: undefined
       }
     }
 
@@ -219,7 +223,8 @@ export async function calculateMachineEfficiencyAction(
     if (productionLogs.length === 0) {
       return {
         isSuccess: false,
-        message: "No production logs found for this date. Cannot calculate metrics."
+        message: "No production logs found for this date. Cannot calculate metrics.",
+        data: undefined
       }
     }
 
@@ -325,9 +330,9 @@ export async function calculateMachineEfficiencyAction(
       efficiencyString = "100.00"; // Default value
     }
 
+    // Return the updated metric with the correct structure
     if (existingMetrics) {
-      // Update existing metrics - with proper type handling
-      const [updatedMetric] = await db
+      const updatedMetric = await db
         .update(efficiencyMetricsTable)
         .set({
           totalRuntime: totalRuntime,
@@ -351,7 +356,10 @@ export async function calculateMachineEfficiencyAction(
       return {
         isSuccess: true,
         message: "Efficiency metrics updated successfully",
-        data: updatedMetric
+        data: {
+          metrics: updatedMetric[0],
+          machines: [cell]
+        }
       };
     } else {
       // Create new metrics record - with proper type handling
@@ -377,14 +385,18 @@ export async function calculateMachineEfficiencyAction(
       return {
         isSuccess: true,
         message: "Efficiency metrics calculated and stored successfully",
-        data: newMetric[0] // Access the first item from the array
+        data: {
+          metrics: newMetric[0],
+          machines: [cell]
+        }
       };
     }
   } catch (error) {
     console.error("Error calculating efficiency metrics:", error);
     return {
       isSuccess: false,
-      message: "An error occurred while calculating efficiency metrics"
+      message: "An error occurred while calculating efficiency metrics",
+      data: undefined
     };
   }
 }
@@ -396,13 +408,22 @@ export async function getAggregatedEfficiencyMetricsAction({
 }: {
   cellId: string
   period: "day" | "week" | "month"
-}): Promise<ActionState<any>> {
+}): Promise<ActionState<{
+  period: string;
+  totalParts: number;
+  totalRuntime: number;
+  totalDowntime: number;
+  avgEfficiency: number;
+  avgAttainment: number | null;
+  metrics: SelectEfficiencyMetric[];
+} | undefined>> {
   try {
     // Validate inputs
     if (!cellId || !period) {
       return {
         isSuccess: false,
-        message: "Missing required parameters: cellId and period"
+        message: "Missing required parameters: cellId and period",
+        data: undefined
       }
     }
 
@@ -446,7 +467,8 @@ export async function getAggregatedEfficiencyMetricsAction({
     if (metrics.length === 0) {
       return {
         isSuccess: false,
-        message: "No metrics found for the specified cell and period"
+        message: "No metrics found for the specified cell and period",
+        data: undefined
       }
     }
 
@@ -512,7 +534,8 @@ export async function getAggregatedEfficiencyMetricsAction({
     console.error("Error retrieving aggregated efficiency metrics:", error)
     return {
       isSuccess: false,
-      message: "An error occurred while retrieving aggregated efficiency metrics"
+      message: "An error occurred while retrieving aggregated efficiency metrics",
+      data: undefined
     }
   }
 }
@@ -521,13 +544,14 @@ export async function getAggregatedEfficiencyMetricsAction({
 export async function recalculateAttainmentAction(
   cellId: string,
   dateRange?: {startDate: string, endDate: string}
-): Promise<ActionState<{updated: number}>> {
+): Promise<ActionState<{updated: number} | undefined>> {
   try {
     // Validate inputs
     if (!cellId) {
       return {
         isSuccess: false,
-        message: "Missing required parameter: cellId"
+        message: "Missing required parameter: cellId",
+        data: undefined
       }
     }
     
@@ -636,7 +660,8 @@ export async function recalculateAttainmentAction(
     console.error("Error recalculating attainment percentages:", error);
     return {
       isSuccess: false,
-      message: "An error occurred while recalculating attainment percentages"
+      message: "An error occurred while recalculating attainment percentages",
+      data: undefined
     }
   }
 } 

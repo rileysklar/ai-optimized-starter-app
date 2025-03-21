@@ -20,7 +20,7 @@ import {
   valueStreamsTable,
   cellsTable
 } from "./manufacturing-schema"
-import { machinesTable } from "./production-schema"
+import { productionMachinesTable } from "../schema"
 
 // Efficiency Metrics table (daily aggregates)
 export const efficiencyMetricsTable = pgTable("efficiency_metrics", {
@@ -28,7 +28,7 @@ export const efficiencyMetricsTable = pgTable("efficiency_metrics", {
   date: date("date").notNull(),
 
   // Hierarchy references - only one should be populated per record
-  machineId: uuid("machine_id").references(() => machinesTable.id, {
+  machineId: uuid("machine_id").references(() => productionMachinesTable.id, {
     onDelete: "cascade"
   }),
   cellId: uuid("cell_id").references(() => cellsTable.id, {
@@ -76,7 +76,7 @@ export const bottleneckAnalysisTable = pgTable("bottleneck_analysis", {
     .references(() => cellsTable.id, { onDelete: "cascade" })
     .notNull(),
   bottleneckMachineId: uuid("bottleneck_machine_id").references(
-    () => machinesTable.id,
+    () => productionMachinesTable.id,
     { onDelete: "set null" }
   ),
   bottleneckSeverity: decimal("bottleneck_severity", {

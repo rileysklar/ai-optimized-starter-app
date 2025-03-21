@@ -36,7 +36,7 @@ export function FixAttainmentData({
 
       if (result.isSuccess) {
         toast.success(result.message)
-        setRecordsUpdated(result.data.updated)
+        setRecordsUpdated(result.data?.updated ?? 0)
       } else {
         toast.error(result.message)
       }
